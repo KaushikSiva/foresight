@@ -7,3 +7,5 @@ wandb/
 recordings/raw/
 recordings/
 MUJOCO_LOG.TXT
+data/warehouse/train/images/
+runs/training/*/*.mp4
