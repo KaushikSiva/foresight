@@ -22,8 +22,14 @@ def main():
     parser.add_argument("output")
     parser.add_argument("--title", required=True)
     parser.add_argument("--program", required=True, help="the plan, or an empty string if no plan was produced")
+    parser.add_argument("--scenes-file", help="use orders from this file instead of the main eval")
     args = parser.parse_args()
-    scene = next(s for s in load_scenes() if s["id"] == args.scene)
+    if args.scenes_file:
+        with open(args.scenes_file) as f:
+            scenes = [json.loads(line) for line in f]
+    else:
+        scenes = load_scenes()
+    scene = next(s for s in scenes if s["id"] == args.scene)
     # With no plan the robot stays still, and the banner says so.
     program = args.program or 'hold("no plan")'
 

@@ -9,3 +9,4 @@ recordings/
 MUJOCO_LOG.TXT
 data/warehouse/train/images/
 runs/training/*/reel_work/
+runs/warehouse/extreme_videos/reel_work/
