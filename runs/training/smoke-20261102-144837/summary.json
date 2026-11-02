@@ -1,0 +1,72 @@
+{
+  "best": {
+    "n": 2,
+    "successes": 2,
+    "success_rate": 1.0,
+    "unsafe": 0,
+    "crushed": 0,
+    "wasteful": 0,
+    "withheld": 0,
+    "errors": 0,
+    "outcomes": {
+      "packed": 2
+    },
+    "p50_latency_s": 8.825580999999147,
+    "tokens_in": 4602,
+    "tokens_out": 1508,
+    "carton_cost_usd": 2.05,
+    "by_tier": {
+      "easy": {
+        "n": 1,
+        "successes": 1
+      },
+      "hard": {
+        "n": 1,
+        "successes": 1
+      }
+    },
+    "step": 1,
+    "perception_right": 1,
+    "snapshot": "kaushik-siva88-bfszv/run-bef8eb0595ec44d887867728621d755f/s0001-e810c371",
+    "spend_usd": 0.076,
+    "eval_minutes": 0.4
+  },
+  "held_out": null,
+  "checkpoints": [
+    {
+      "n": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "unsafe": 0,
+      "crushed": 0,
+      "wasteful": 0,
+      "withheld": 0,
+      "errors": 0,
+      "outcomes": {
+        "packed": 2
+      },
+      "p50_latency_s": 8.825580999999147,
+      "tokens_in": 4602,
+      "tokens_out": 1508,
+      "carton_cost_usd": 2.05,
+      "by_tier": {
+        "easy": {
+          "n": 1,
+          "successes": 1
+        },
+        "hard": {
+          "n": 1,
+          "successes": 1
+        }
+      },
+      "step": 1,
+      "perception_right": 1,
+      "snapshot": "kaushik-siva88-bfszv/run-bef8eb0595ec44d887867728621d755f/s0001-e810c371",
+      "spend_usd": 0.076,
+      "eval_minutes": 0.4
+    }
+  ],
+  "spend_usd": 0.12966493,
+  "session": "ts-6dca00328adf4281a9e00bc71c955736",
+  "wandb_url": "https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/swy4ytln"
+}

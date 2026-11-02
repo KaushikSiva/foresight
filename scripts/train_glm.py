@@ -235,6 +235,7 @@ def main():
     parser.add_argument("--rank", type=int, default=32)
     parser.add_argument("--per-tier", type=int, default=10)
     parser.add_argument("--output-model", default="foresight-glm-5p3-flash-warehouse")
+    parser.add_argument("--keep-session", action="store_true", help="never delete the training session or its checkpoints")
     parser.add_argument("--skip-held-out", action="store_true", help="the held-out test is one-shot and has already run")
     parser.add_argument("--film", default="", help="comma-separated scene ids to film at every checkpoint")
     args = parser.parse_args()
@@ -325,8 +326,8 @@ def main():
         pool.shutdown()
         log.close()
         wandb.finish()
-        if keep_session:
-            print("SESSION KEPT because the model was not saved:", service.training_session_id, flush=True)
+        if keep_session or args.keep_session:
+            print("SESSION KEPT:", service.training_session_id, flush=True)
         else:
             try:
                 service.delete_training_session()

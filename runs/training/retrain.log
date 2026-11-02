@@ -1,0 +1,35 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+You are using a model of type `glm5_next` to instantiate a model of type ``. This may be expected if you are loading a checkpoint that shares a subset of the architecture (e.g., loading a `sam2_video` checkpoint into `Sam2Model`), but is otherwise not supported and can yield errors. Please verify that the checkpoint is compatible with the model you are instantiating.
+300 vision + 300 plan examples, 739,917 tokens, training estimate $6.58, 75 steps, cap $12.0
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from WANDB_API_KEY.
+wandb: Currently logged in as: kaushik-siva88 to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run mmy51dnf
+wandb: Tracking run with wandb version 0.24.2
+wandb: Run data is saved locally in /Users/kaushiksivakumar/workspace/foresight/wandb/run-20261102_145035-mmy51dnf
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run run-20261102-145035
+wandb: ⭐️ View project at https://wandb.ai/kaushik-siva88/foresight-warehouse
+wandb: 🚀 View run at https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/mmy51dnf
+session ts-49120c6ed6e544a5bb278fc605b289e0
+{"step": 1, "loss": 0.9859, "spend_usd": 0.102, "t": "14:50:47"}
+{"step": 2, "loss": 0.1574, "spend_usd": 0.17, "t": "14:50:56"}
+{"step": 3, "loss": 0.0863, "spend_usd": 0.255, "t": "14:51:05"}
+{"step": 4, "loss": 0.0146, "spend_usd": 0.338, "t": "14:51:14"}
+{"step": 5, "loss": 0.0215, "spend_usd": 0.418, "t": "14:51:23"}
+{"step": 6, "loss": 0.0137, "spend_usd": 0.521, "t": "14:51:32"}
+{"step": 7, "loss": 0.0084, "spend_usd": 0.618, "t": "14:51:41"}
+{"step": 8, "loss": 0.012, "spend_usd": 0.7, "t": "14:51:50"}
+{"step": 9, "loss": 0.0234, "spend_usd": 0.788, "t": "14:51:58"}
+{"step": 10, "loss": 0.0161, "spend_usd": 0.862, "t": "14:52:07"}
+{"step": 11, "loss": 0.0099, "spend_usd": 0.934, "t": "14:52:15"}
+{"step": 12, "loss": 0.0059, "spend_usd": 1.021, "t": "14:52:24"}
+{"step": 13, "loss": 0.0107, "spend_usd": 1.103, "t": "14:52:33"}
+{"step": 14, "loss": 0.0067, "spend_usd": 1.201, "t": "14:52:41"}
+{"step": 15, "loss": 0.006, "spend_usd": 1.288, "t": "14:52:50"}
+{"step": 16, "loss": 0.0039, "spend_usd": 1.39, "t": "14:52:59"}
+{"step": 17, "loss": 0.0057, "spend_usd": 1.495, "t": "14:53:08"}
+{"step": 18, "loss": 0.0023, "spend_usd": 1.579, "t": "14:53:17"}
+{"step": 19, "loss": 0.0001, "spend_usd": 1.68, "t": "14:53:26"}
+{"step": 20, "loss": 0.0084, "spend_usd": 1.772, "t": "14:53:34"}
+{"step": 21, "loss": 0.0051, "spend_usd": 1.866, "t": "14:53:43"}
+{"step": 22, "loss": 0.0056, "spend_usd": 1.955, "t": "14:53:52"}
