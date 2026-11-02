@@ -20,10 +20,10 @@ sys.path.insert(0, str(ROOT))
 import transformers
 import wandb
 from fireworks.training import sdk
-from fireworks.training.sdk import FiretitanServiceClient
+from fireworks.training.sdk import FireworksClient, FiretitanServiceClient
 
 from warehouse.evaluation import load_scenes, run_variant, sample_scenes, summarize
-from warehouse.planner import PERCEIVE_PROMPT, SKU_LOOKS, extract_json, foresight, normalize_perception, ModelOutputError
+from warehouse.planner import PERCEIVE_PROMPT, SKU_LOOKS, baseline, extract_json, foresight, normalize_perception, ModelOutputError
 
 BASE_MODEL = "accounts/fireworks/models/glm-5p3-flash"
 TOKENIZER = "zai-org/GLM-5.3-Flash"
@@ -115,9 +115,9 @@ class SnapshotClient:
                 "prompt_tokens": count, "completion_tokens": len(tokens), "latency_s": time.monotonic() - start}
 
 
-def perceive_with(client, texts, scenes):
+def perceive_with(client, texts, scenes, image_dir=ROOT / "data" / "warehouse" / "images"):
     def run(scene):
-        path = ROOT / "data" / "warehouse" / "images" / f"{scene['id']}.jpg"
+        path = Path(image_dir) / f"{scene['id']}.jpg"
         url = "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode()
         messages = [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": url}}, {"type": "text", "text": texts.vision_text}]}]
         try:
@@ -190,6 +190,41 @@ def held_out(best, service, texts, spend, pool, out_dir, log):
     return summary
 
 
+def save_model(training_client, service, output_id):
+    """Keep the tuned weights as a Fireworks model. Runs before anything can close the session."""
+    training_client.save_weights_for_sampler("final").result()
+    fw = FireworksClient(api_key=os.environ["FIREWORKS_API_KEY"])
+    rows = [r for r in fw.list_training_session_checkpoints(service.training_session_name)
+            if r.get("promotable") and "final" in (r.get("checkpointName") or r.get("name") or "")]
+    if not rows:
+        raise RuntimeError("no promotable final checkpoint found")
+    target = max(rows, key=lambda r: r.get("createTime", ""))
+    fw.promote_session_checkpoint(name=target["name"], output_model_id=output_id, base_model=BASE_MODEL)
+    print("MODEL SAVED", output_id, "from", target["name"], flush=True)
+
+
+def extreme(training_client, service, texts, spend, pool, out_dir, log, limit=None):
+    """The fine-tuned model on the extreme orders, with and without the Foresight harness."""
+    data = ROOT / "data" / "warehouse" / "extreme"
+    with open(data / "scenes.jsonl") as f:
+        scenes = [json.loads(line) for line in f]
+    scenes = scenes[:limit] if limit else scenes
+    snapshot = training_client.save_weights_for_sampler("extreme").result().path
+    client = SnapshotClient(service.create_sampling_client(model_path=snapshot, tokenizer=texts.tok), texts, spend)
+    perception = perceive_with(client, texts, scenes, data / "images")
+    right = sum(perception[s["id"]]["totes"] == s["totes"] for s in scenes)
+    for name, variant in (("A_tuned_plain", baseline), ("C_tuned_foresight", foresight)):
+        records = run_variant(client, "snapshot", variant, scenes, perception, pool=pool)
+        summary = summarize(records)
+        summary.update(variant=name, perception_right=right, spend_usd=round(spend.usd, 3))
+        with open(out_dir / f"extreme_{name}.jsonl", "w") as f:
+            for record in records:
+                f.write(json.dumps({**record, "perceived": perception[record["scene"]]["totes"]}) + "\n")
+        log.write(json.dumps({"extreme": summary}) + "\n")
+        log.flush()
+        print("EXTREME", json.dumps({k: summary[k] for k in ("variant", "successes", "n", "perception_right", "unsafe", "withheld", "errors", "outcomes", "tokens_out", "p50_latency_s", "spend_usd", "by_tier")}), flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke", action="store_true", help="a tiny paid run to prove the loop: 4 examples, 2 eval orders")
@@ -199,6 +234,8 @@ def main():
     parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--rank", type=int, default=32)
     parser.add_argument("--per-tier", type=int, default=10)
+    parser.add_argument("--output-model", default="foresight-glm-5p3-flash-warehouse")
+    parser.add_argument("--skip-held-out", action="store_true", help="the held-out test is one-shot and has already run")
     parser.add_argument("--film", default="", help="comma-separated scene ids to film at every checkpoint")
     args = parser.parse_args()
 
@@ -230,7 +267,7 @@ def main():
     if args.smoke:
         scenes = scenes[:2]
     film_ids = [x for x in args.film.split(",") if x]
-    checkpoints = [0, steps_total] if args.smoke else sorted({int(x) for x in args.checkpoints.split(",") if int(x) <= steps_total} | {steps_total})
+    checkpoints = [steps_total] if args.smoke else sorted({int(x) for x in args.checkpoints.split(",") if int(x) <= steps_total} | {steps_total})
 
     stamp = time.strftime("%Y%m%d-%H%M%S")
     out_dir = RUNS / (("smoke-" if args.smoke else "run-") + stamp)
@@ -242,10 +279,12 @@ def main():
     service = FiretitanServiceClient(api_key=os.environ["FIREWORKS_API_KEY"], base_url=SERVERLESS_URL)
     pool = ProcessPoolExecutor(8)
     results, filmer = [], []
+    keep_session = False
     try:
         training_client = service.create_lora_training_client(BASE_MODEL, rank=args.rank)
         print("session", service.training_session_id, flush=True)
-        results.append(evaluate(0, training_client, service, texts, scenes, spend, pool, film_ids, out_dir, log, filmer))
+        if 0 in checkpoints:
+            results.append(evaluate(0, training_client, service, texts, scenes, spend, pool, film_ids, out_dir, log, filmer))
         order = list(range(len(datums)))
         random.Random(7).shuffle(order)
         adam = sdk.AdamParams(learning_rate=args.lr, beta1=0.9, beta2=0.999, eps=1e-8, weight_decay=0.0, grad_clip_norm=1.0)
@@ -265,9 +304,13 @@ def main():
             if step in checkpoints:
                 results.append(evaluate(step, training_client, service, texts, scenes, spend, pool, film_ids, out_dir, log, filmer))
             wandb.log({"train/loss": loss, "spend_usd": spend.usd}, step=step)
+        keep_session = True  # stays alive until the model is safely saved
+        save_model(training_client, service, args.output_model)
+        keep_session = False
+        extreme(training_client, service, texts, spend, pool, out_dir, log, limit=2 if args.smoke else None)
         best = max(results, key=lambda r: (r["successes"], r["step"]))
         final = None
-        if not args.smoke:
+        if not args.smoke and not args.skip_held_out:
             final = held_out(best, service, texts, spend, pool, out_dir, log)
             wandb.summary.update({"held_out_success_rate": final["success_rate"], "held_out_unsafe": final["unsafe"]})
         for scene_id, step, future in filmer:
@@ -282,11 +325,14 @@ def main():
         pool.shutdown()
         log.close()
         wandb.finish()
-        try:
-            service.delete_training_session()
-            print("session deleted", flush=True)
-        except Exception as e:
-            print("session delete failed:", e, flush=True)
+        if keep_session:
+            print("SESSION KEPT because the model was not saved:", service.training_session_id, flush=True)
+        else:
+            try:
+                service.delete_training_session()
+                print("session deleted", flush=True)
+            except Exception as e:
+                print("session delete failed:", e, flush=True)
         service.close()
 
 
