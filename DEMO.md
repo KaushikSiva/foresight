@@ -1,4 +1,4 @@
-# Foresight demo script (3 minutes)
+# Foresight demo script (2 minutes)
 
 **One-liner:** Foresight checks every robot plan in simulation before anything moves, and fine-tuning on simulated data teaches the model to read the station's camera.
 
@@ -19,53 +19,45 @@ Say "the Foresight harness" and "the fine-tuned model" separately. They are diff
 
 ## Script
 
-### 0:00 to 0:25: The problem (A)
+### 0:00 to 0:15: The problem (A)
 
-> A warehouse robot gets an order and has to pack it: heavy items down, nothing on fragile items, no liquid above electronics, inside the weight limit. One bad plan means crushed goods or a useless carton. Models are good at writing plans, but nothing checks them before the arm moves. So we built that check.
+> Warehouse robots pack orders with hard rules: heavy items down, nothing on fragile items, stay under the weight limit. Models write plans well, but nothing checks them before the arm moves. So we built that check.
 
-### 0:25 to 1:05: Watch it (A)
+### 0:15 to 0:45: Watch it (A)
 
 Play `extreme_reel.mp4` from the second title card, one order only.
 
-> These are the hardest orders we could build: seven or eight items, mixing heavy, fragile, liquid and electronics, with lookalike products. Same model on both sides. On the left it plans alone. On the right it goes through Foresight: it predicts each step, checks the rules, runs a MuJoCo physics dry run, and retries if anything fails. Left, a rule breaks. Right, it's packed.
+> These are the hardest orders we could build. Same model on both sides. On the left it plans alone. On the right, Foresight predicts each step, checks the rules, and runs a physics dry run before anything moves. Left, a rule breaks. Right, it's packed.
 
-### 1:05 to 1:45: The numbers (B)
-
-> We fixed these orders before seeing any results and ran them once, scoring every plan in physics.
+### 0:45 to 1:10: Harness results (B)
 
 | 30 extreme orders | Plain GLM | GLM + Foresight |
 |---|---|---|
 | Correct | 20/30 | **25/30** |
 | When it read the image right | 17/22 | **22/22** |
 | Median latency | 10 s | 31 s |
-| API cost for the whole test | $0.03 | $0.08 |
 
-> Foresight won 5 orders and lost none. That's p = 0.06, so promising but not proof. When the model read the camera correctly, it packed every order. The price is about three times the latency and under a cent per extra correct order.
+> We fixed these orders in advance, ran them once, and scored every plan in physics. Foresight won 5 and lost none. That's promising, not proof. It costs three times the latency and under a cent per extra correct order.
 
-> On a broader task set of 50, unsafe plans dropped from 10 to 0, and success rose from 36 to 50 out of 50.
+### 1:10 to 1:45: Fine-tuning (B)
 
-### 1:45 to 2:30: Fine-tuning (B)
-
-> Every remaining failure came from misreading the camera, so that's what we tuned. We trained GLM 5.3 Flash on 600 simulated examples for about $9, tracking it in Weights & Biases.
-
-Show the W&B curve, then a few seconds of `improvement_reel.mp4`.
+Show the W&B curve for a few seconds.
 
 | 50 held-out orders, with Foresight | Base GLM | Fine-tuned GLM |
 |---|---|---|
 | Images read correctly | 32/50 | **50/50** |
 | Correct overall | 43/50 | 44/50 |
-| Reply tokens per order | 2,355 | **312** |
 | Hard orders correct | **9/12** | 6/12 |
 
-> Vision became perfect on this set and tokens dropped sharply. But overall success barely moved, and hard orders got worse, because we also turned reasoning off. That's the tradeoff, and we'd rather show it than hide it.
+> Every remaining failure came from misreading the camera, so we tuned on that, with 600 simulated examples for about $9. Vision became perfect on this set. But overall success barely moved and hard orders got worse, because we also turned reasoning off. That's the tradeoff.
 
 **Extreme test on the retrained model:** RESULT PENDING. Fill this in before presenting. If it isn't ready, don't mention it.
 
-### 2:30 to 3:00: Close (A)
+### 1:45 to 2:00: Close (A)
 
-> So here's what we'd ship: fine-tuned vision to read the station, and a reasoning planner behind the Foresight check. A failed plan never reaches the robot; it gets withheld. That's safety you can measure, at under a cent per extra correct order.
+> Next we'd ship fine-tuned vision with a reasoning planner, behind the Foresight check. A failed plan never reaches the robot. That's safety you can measure, for under a cent per extra correct order.
 
-The combined system in the first sentence is **untested**. Keep saying "what we'd ship next" unless it has been run.
+The combined system is **untested**, so keep saying "next we'd ship" unless it has been run.
 
 ## Rules for presenting
 
@@ -100,7 +92,7 @@ About $9.44 for the first training run. The retrain has a $12 cap. Each eval run
 
 - **Video won't play:** use the same files in the GitHub repo, or the copies on Kaushik's Desktop.
 - **W&B won't load:** skip the curve and use the tables above.
-- **Over time:** cut the fine-tuning table down to one line: "Vision went from 32/50 to 50/50, overall success barely moved."
+- **Over time:** replace the fine-tuning table with one line: "Vision went from 32/50 to 50/50, overall success barely moved."
 
 ## Prep checklist
 
