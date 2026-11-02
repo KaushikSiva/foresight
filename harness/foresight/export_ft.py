@@ -15,7 +15,7 @@ import json
 from . import prompts
 from .eval import load_tasks
 from .config import ROOT
-from .render import png_bytes
+from .render import image_bytes
 from .solver import fill_expects, plan_steps, solve
 from .schema import Plan
 from .validator import check
@@ -31,7 +31,7 @@ def main() -> None:
             open(OUT / "replan.jsonl", "w") as fr:
         for t in tasks:
             target_scene = prompts.scene_json(t.scene)
-            fp.write(json.dumps({"messages": prompts.perceive(png_bytes(t)) +
+            fp.write(json.dumps({"messages": prompts.perceive(image_bytes(t)) +
                                  [{"role": "assistant", "content": target_scene}]}) + "\n")
             n["perception"] += 1
 

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from . import config
 from .eval import load_tasks
 from .metrics import load_runs, table
-from .render import png_bytes
+from .render import image_bytes
 from .schema import Plan
 from .sim import execute
 from .variants import VARIANTS, run_task
@@ -29,8 +29,9 @@ LIVE = config.ROOT / "data" / "live"
 _llm = None
 
 
-def _b64(png: bytes) -> str:
-    return "data:image/png;base64," + base64.b64encode(png).decode()
+def _b64(img: bytes) -> str:
+    mime = "image/jpeg" if img[:2] == b"\xff\xd8" else "image/png"
+    return f"data:{mime};base64," + base64.b64encode(img).decode()
 
 
 def _with_after_image(rec: dict) -> dict:
@@ -38,7 +39,7 @@ def _with_after_image(rec: dict) -> dict:
     task = TASKS[rec["task_id"]]
     if rec.get("final_plan"):
         res = execute(task.scene, Plan.model_validate(rec["final_plan"]))
-        rec["after_image"] = _b64(png_bytes(task, res.final))
+        rec["after_image"] = _b64(image_bytes(task, res.final))
     return rec
 
 
@@ -49,7 +50,7 @@ def index():
 
 @app.get("/api/meta")
 def meta():
-    return {"variants": VARIANTS, "live_available": bool(os.environ.get("FIREWORKS_API_KEY")) and bool(config.MODEL),
+    return {"variants": VARIANTS, "render": config.RENDER, "live_available": bool(os.environ.get("FIREWORKS_API_KEY")) and bool(config.MODEL),
             "models": {"main": config.MODEL, "small": config.MODEL_SMALL, "large": config.MODEL_LARGE,
                        "ft": config.MODEL_FT}}
 
@@ -61,7 +62,7 @@ def results():
 
 @app.get("/api/tasks")
 def tasks(split: Optional[str] = None):
-    return [{"id": t.id, "split": t.split, "difficulty": t.difficulty, "instruction": t.instruction}
+    return [{"id": t.id, "split": t.split, "difficulty": t.difficulty, "instruction": t.instruction, "traps": t.traps}
             for t in TASKS.values() if split is None or t.split == split]
 
 
@@ -69,7 +70,17 @@ def tasks(split: Optional[str] = None):
 def image(task_id: str):
     if task_id not in TASKS:
         raise HTTPException(404)
-    return Response(png_bytes(TASKS[task_id]), media_type="image/png")
+    img = image_bytes(TASKS[task_id])
+    return Response(img, media_type="image/jpeg" if img[:2] == b"\xff\xd8" else "image/png")
+
+
+@app.get("/api/tasks/{task_id}/cinema.jpg")
+def cinema(task_id: str):
+    """A three-quarter view of the same scene for the demo. The model only ever sees the overhead camera."""
+    if task_id not in TASKS or config.RENDER != "3d":
+        raise HTTPException(404)
+    from .render3d import jpeg_bytes
+    return Response(jpeg_bytes(TASKS[task_id], camera="cinema"), media_type="image/jpeg")
 
 
 @app.get("/api/logged/{variant}/{task_id}")

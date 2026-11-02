@@ -79,6 +79,15 @@ def render(task: Task, scene: Optional[Scene] = None) -> Image.Image:
     return img
 
 
+def image_bytes(task: Task, scene: Optional[Scene] = None) -> bytes:
+    """The camera image the model sees: the 3D station (JPEG) or the flat view (PNG), per config.RENDER."""
+    from . import config
+    if config.RENDER == "3d":
+        from .render3d import jpeg_bytes
+        return jpeg_bytes(task, scene)
+    return png_bytes(task, scene)
+
+
 def png_bytes(task: Task, scene: Optional[Scene] = None) -> bytes:
     buf = io.BytesIO()
     render(task, scene).save(buf, format="PNG")

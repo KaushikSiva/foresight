@@ -3,6 +3,7 @@
   python -m foresight.eval gen                          # freeze the 200 tasks to data/tasks.json + images
   python -m foresight.eval run A B C --split tune       # writes runs/tune-A.jsonl, ...
   python -m foresight.eval run C --split tune --limit 10 --mock
+  python -m foresight.eval run C --ids packing-001 packing-002 packing-006 --name smoke   # smoke test
   python -m foresight.eval run A B C D --split heldout --confirm-heldout   # once, at the end
   python -m foresight.eval report
 """
@@ -39,7 +40,30 @@ def cmd_gen(args) -> None:
     IMAGES.mkdir(parents=True, exist_ok=True)
     for t in tasks:
         render(t).save(IMAGES / f"{t.id}.png")
-    print(f"wrote {len(tasks)} tasks and images ({sum(t.split == 'heldout' for t in tasks)} held out)")
+    print(f"wrote {len(tasks)} tasks and flat images ({sum(t.split == 'heldout' for t in tasks)} held out)")
+    if config.RENDER == "3d":
+        render_3d(tasks)
+
+
+def _render_one(task_json: str) -> str:
+    from .render3d import jpeg_bytes
+    t = Task.model_validate_json(task_json)
+    jpeg_bytes(t)
+    jpeg_bytes(t, camera="cinema")
+    return t.id
+
+
+def render_3d(tasks: List[Task], workers: int = 4) -> None:
+    """Pre-render every task in the MuJoCo station (overhead for the model, cinema for the demo)."""
+    import shutil
+    from concurrent.futures import ProcessPoolExecutor
+    from .render3d import CACHE
+    shutil.rmtree(CACHE, ignore_errors=True)
+    t0 = time.time()
+    with ProcessPoolExecutor(workers) as pool:
+        for i, _ in enumerate(pool.map(_render_one, [t.model_dump_json() for t in tasks]), 1):
+            if i % 25 == 0 or i == len(tasks):
+                print(f"  3d: {i}/{len(tasks)} ({time.time() - t0:.0f}s)", flush=True)
 
 
 async def _run_variant(variant: str, tasks: List[Task], mock: bool) -> List[dict]:
@@ -64,6 +88,8 @@ async def _run_variant(variant: str, tasks: List[Task], mock: bool) -> List[dict
 
 def cmd_run(args) -> None:
     tasks = [t for t in load_tasks() if t.split == args.split]
+    if args.ids:
+        tasks = [t for t in load_tasks() if t.id in set(args.ids)]
     if args.difficulty:
         tasks = [t for t in tasks if t.difficulty == args.difficulty]
     if args.limit:
@@ -74,7 +100,7 @@ def cmd_run(args) -> None:
             sys.exit(f"unknown variant {v}; choose from {list(VARIANTS)}")
         name = args.name or f"{args.split}-{v}{'-mock' if args.mock else ''}"
         out = config.RUNS / f"{name}.jsonl"
-        if args.split == "heldout" and not args.mock:
+        if any(t.split == "heldout" for t in tasks) and not args.mock:
             if not args.confirm_heldout:
                 sys.exit("held-out runs are one-shot: pass --confirm-heldout")
             if out.exists() and not args.force:
@@ -99,6 +125,7 @@ def main() -> None:
     r.add_argument("--split", choices=["tune", "heldout"], default="tune")
     r.add_argument("--difficulty", choices=["easy", "multi_step", "blocked", "impossible", "packing"])
     r.add_argument("--limit", type=int)
+    r.add_argument("--ids", nargs="+", help="run exactly these task ids (any split)")
     r.add_argument("--mock", action="store_true", help="offline mock model; numbers are not results")
     r.add_argument("--name")
     r.add_argument("--confirm-heldout", action="store_true")

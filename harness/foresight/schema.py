@@ -98,6 +98,10 @@ class Task(BaseModel):
     goals: List[Goal]  # empty when the task is impossible
     # Containers that must end closed and hold exactly their goal objects (packed orders).
     sealed: List[str] = Field(default_factory=list)
+    # What the instruction literally asks for, even when it cannot be done (used by baselines and audit).
+    requested: List[Goal] = Field(default_factory=list)
+    # The difficulty mechanisms in this task, e.g. "closed_lid", "repack_fragile", "lookalike".
+    traps: List[str] = Field(default_factory=list)
     possible: bool
     # Pixel layout for rendering only: entity id -> (x, y, w, h)
     layout: Dict[str, Tuple[int, int, int, int]] = Field(default_factory=dict)

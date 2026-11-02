@@ -4,15 +4,24 @@ import base64
 import json
 from typing import List
 
+from . import config
 from .scenes import COLORS, KINDS, generate
 from .schema import SKILLS, Plan, Scene, Task, step_dict
 from .solver import solve
 
-RULES = f"""You control a one-armed robot over a tabletop, seen from directly above.
+LOOK = {
+    "3d": ("Kinds: block (cube), ball (sphere), cup (mug with a handle).",
+           "A closed bin has a dark grey lid with handles; a closed box or carton has its flaps folded shut and taped. "
+           "Each container's name is printed on the white plate in front of it."),
+    "2d": ("Kinds: block (square), ball (shaded circle), cup (ring with a small handle).",
+           "A closed bin, box or carton has a grey striped lid marked CLOSED."),
+}[config.RENDER]
+
+RULES = f"""You control a one-armed robot at a packing bench, seen from directly above. "table" means the bench top.
 Places: "table", plus containers. A container's id is its printed label in lower case with spaces as underscores ("CARTON A" is "carton_a").
   tray: holds 1, no lid. bin: holds 3. box: holds 2. tote (warehouse stock): holds 4, no lid. carton (shipping): holds 3.
-  Bins, boxes and cartons can be closed: a grey striped lid marked CLOSED. You cannot see inside a closed container.
-Objects have ids "<color>_<kind>". Colors: {", ".join(COLORS)}. Kinds: block (square), ball (shaded circle), cup (ring with a small handle).
+  Bins, boxes and cartons can be closed. {LOOK[1]} You cannot see inside a closed container.
+Objects have ids "<color>_<kind>". Colors: {", ".join(COLORS)}. {LOOK[0]}
 Skills. Each step is {{"skill": name, "args": [...]}}:
   move_to(x)          x is an object id, "table", or a container id
   pick(obj)           you must be at obj and the gripper must be empty
@@ -48,8 +57,9 @@ SCENE_SCHEMA = {"type": "object", "properties": {
     "required": ["objects", "containers"]}
 
 
-def image_part(png: bytes) -> dict:
-    return {"type": "image_url", "image_url": {"url": "data:image/png;base64," + base64.b64encode(png).decode()}}
+def image_part(img: bytes) -> dict:
+    mime = "image/jpeg" if img[:2] == b"\xff\xd8" else "image/png"
+    return {"type": "image_url", "image_url": {"url": f"data:{mime};base64," + base64.b64encode(img).decode()}}
 
 
 def scene_json(scene: Scene) -> str:

@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from . import config
 from .schema import TABLE, Goal, Plan, Scene, Task, step_dict
-from .solver import fill_expects, plan_steps
+from .solver import fill_expects, plan_steps, search
 
 
 class Call(BaseModel):
@@ -101,26 +101,12 @@ def parse_json(text: str):
 
 
 # ------------------------------------------------------------------------------------------
-# Mock model: for testing the pipeline without an API key. It reads the instruction, looks at
-# a noisy copy of the true scene, and makes rule mistakes at a configurable rate. Its numbers
+# Mock model: for testing the pipeline without an API key. It knows what the instruction asks
+# (task.requested), looks at a noisy copy of the true scene, and makes mistakes at a set rate. Its numbers
 # are made up by construction, so every mock run is flagged and the dashboard labels it.
 # ------------------------------------------------------------------------------------------
 NEAR = {"red": "orange", "orange": "red", "pink": "red", "yellow": "orange", "green": "blue", "blue": "purple",
         "purple": "blue"}
-
-
-def parse_instruction(text: str):
-    """Returns (goals, sealed). The mock reads the instruction the way a model would."""
-    orders = re.findall(r"order (\w) \(([^)]*)\) into carton \w", text)
-    if orders:
-        goals = [Goal(obj=m.replace(" ", "_"), location=f"carton_{letter.lower()}")
-                 for letter, items in orders for m in re.findall(r"\w+ (?:block|cup|ball)", items)]
-        return goals, [f"carton_{letter.lower()}" for letter, _ in orders]
-    objs = [m.replace(" ", "_") for m in re.findall(r"the (\w+ (?:block|cup|ball))", text)]
-    targets = re.findall(r"(?:on|in) the (tray|bin|box)", text)
-    if len(targets) == 1:
-        targets = targets * len(objs)
-    return [Goal(obj=o, location=t) for o, t in zip(objs, targets)], []
 
 
 class Mock:
@@ -148,7 +134,8 @@ class Mock:
         return s
 
     def _plan(self, scene: Scene, sloppy: bool, with_expect: bool) -> dict:
-        goals, sealed = parse_instruction(self.task.instruction)
+        goals, sealed = self.task.requested, list(self.task.sealed) or [
+            c for c in dict.fromkeys(g.location for g in self.task.requested) if c.startswith("carton")]
         missing = [g for g in goals if scene.obj(g.obj) is None or
                    (g.location != TABLE and scene.container(g.location) is None)]
         if missing and not sloppy:
@@ -159,7 +146,12 @@ class Mock:
                 o = scene.obj(g.obj) or next((x for x in scene.objects if x.kind == g.obj.split("_")[1]), None)
                 fixed.append(Goal(obj=o.id if o else g.obj, location=g.location if scene.container(g.location) else TABLE))
             goals = fixed
-        steps = plan_steps(scene, goals, prereqs=not sloppy, sealed=sealed)
+        if sloppy:
+            steps = plan_steps(scene, goals, prereqs=False, sealed=sealed)
+        else:
+            steps = search(scene, goals, sealed)
+            if steps is None:
+                return {"goal": [], "sealed": [], "steps": [{"skill": "refuse", "args": ["no safe plan can do this"]}]}
         if with_expect:
             steps = fill_expects(scene, steps)
         plan = Plan(steps=steps)

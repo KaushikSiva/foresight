@@ -1,9 +1,20 @@
 import pytest
 
-from foresight.scenes import generate
+from functools import lru_cache
+
+from foresight.scenes import generate as _generate
 from foresight.schema import Container, Obj, Plan, Robot, Scene, Step
 from foresight.sim import RuleError, apply_step, execute, score
 from foresight.solver import solve
+
+
+@lru_cache(maxsize=1)
+def _tasks():
+    return tuple(_generate())
+
+
+def generate():
+    return list(_tasks())
 
 
 def scene(**kw):
@@ -92,7 +103,7 @@ def test_refusing_a_possible_task_fails():
 
 
 def test_generation_is_deterministic():
-    assert [t.model_dump() for t in generate()[:20]] == [t.model_dump() for t in generate()[:20]]
+    assert [t.model_dump() for t in _generate()[:20]] == [t.model_dump() for t in generate()[:20]]
 
 
 def test_foresight_plan_roundtrip_keeps_null_holding():
@@ -108,7 +119,7 @@ def test_foresight_plan_roundtrip_keeps_null_holding():
 def test_checker_catches_skipped_prerequisite():
     from foresight.solver import plan_steps
     from foresight.validator import check
-    t = next(t for t in generate() if t.difficulty == "blocked")
+    t = next(t for t in generate() if "closed_lid" in t.traps)
     errs = check(t.scene, Plan(steps=plan_steps(t.scene, t.goals, prereqs=False)), t.goals)
     assert any("breaks a rule" in e for e in errs)
 
@@ -147,8 +158,30 @@ def test_checker_catches_packing_mistakes():
             assert check(t.scene, naive, t.goals, t.sealed), t.id
 
 
-def test_mock_parses_packing_instruction():
-    from foresight.llm import parse_instruction
-    goals, sealed = parse_instruction("Pack order A (red cup and blue block) into carton A and order B (green ball) into carton B. Seal both cartons.")
-    assert [(g.obj, g.location) for g in goals] == [("red_cup", "carton_a"), ("blue_block", "carton_a"), ("green_ball", "carton_b")]
-    assert sealed == ["carton_a", "carton_b"]
+def test_impossible_tasks_have_no_plan():
+    from foresight.solver import search
+    for t in generate():
+        if not t.possible:
+            assert search(t.scene, t.requested, ["carton_a"] if "carton_a" in {g.location for g in t.requested} else []) is None, t.id
+
+
+def test_audit_bar_holds():
+    from foresight.audit import audit, verdict
+    for d, r in audit(generate()).items():
+        assert verdict(d, r) == [], (d, verdict(d, r))
+
+
+def test_repack_fragile_needs_cup_out_and_back():
+    t = next(t for t in generate() if "repack_fragile" in t.traps and t.possible)
+    calls = [(s.skill, tuple(s.args)) for s in solve(t).steps]
+    cup = next(o.id for o in t.scene.objects if o.location == "carton_a" and o.kind == "cup")
+    assert calls.count(("pick", (cup,))) == 2  # out, then back in
+
+
+def test_3d_render_is_a_full_frame():
+    from foresight import config
+    if config.RENDER != "3d":
+        return
+    from foresight.render3d import render
+    t = next(t for t in generate() if t.difficulty == "packing")
+    assert render(t).size == (1280, 720)

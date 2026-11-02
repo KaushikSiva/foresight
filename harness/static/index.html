@@ -130,9 +130,14 @@ th:first-child, td:first-child { text-align: left; }
     </div>
     <div class="demo">
       <div class="scene">
-        <img id="sceneImg" alt="Top-down view of the table">
+        <div class="seg" id="view" style="margin-bottom:8px">
+          <button data-v="overhead" class="on" title="What the model sees">Robot camera</button>
+          <button data-v="cinema" title="For people; the model never sees this view">3/4 view</button>
+        </div>
+        <img id="sceneImg" alt="The packing bench seen by the robot camera">
         <div class="instr" id="instr"></div>
         <div class="meta" id="taskMeta"></div>
+        <div class="chips" id="traps" style="margin-top:8px"></div>
       </div>
       <div class="col" id="colL"></div>
       <div class="col" id="colR"></div>
@@ -153,8 +158,23 @@ th:first-child, td:first-child { text-align: left; }
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const pct = x => x == null ? "–" : (100 * x).toFixed(1) + "%";
+const TRAP = {
+  lookalike: "A distractor one color or shape away from a named item",
+  make_room: "The bin has room for one; something must come out first",
+  swap: "The tray holds an item that must move before the listed first step works",
+  three_items: "The tray's current item belongs in the bin; the tray item is listed first",
+  relocate: "The source is full; an item must leave before the new one fits",
+  closed_lid: "The destination is closed", reclose: "The lid must be closed again at the end",
+  occupied: "The tray already holds something", full: "The destination is full",
+  two_obstacles: "A full box and a closed bin in one task",
+  missing_object: "The named item is not there (a lookalike is)", missing_container: "The named container is not there",
+  over_capacity: "More items than the destination can ever hold",
+  basic: "Closed carton, fragile cup, seal", repack_fragile: "A cup already in the carton must come out and go back last",
+  wrong_item: "A wrong item in the carton must be removed before sealing", two_orders: "Two orders, two cartons",
+  out_of_stock: "One ordered item is not in stock",
+};
 const DIFF = { easy: "Easy", multi_step: "Multi-step", blocked: "Blocked", impossible: "Impossible", packing: "Packing" };
-let META, TASKS = [], source = "logged", resSplit = "heldout", RESULTS = {};
+let META, TASKS = [], source = "logged", resSplit = "heldout", RESULTS = {}, view = "overhead";
 const sides = { L: "A", R: "C" };
 
 const tip = $("#tip");
@@ -184,6 +204,8 @@ async function init() {
   $("#split").onchange = $("#diff").onchange = fillTasks;
   $("#task").onchange = showTask;
   seg($("#source"), v => source = v);
+  if (META.render !== "3d") $("#view").style.display = "none";
+  seg($("#view"), v => { view = v; const t = $("#task").value; $("#sceneImg").src = `/api/tasks/${t}/${v === "cinema" ? "cinema.jpg" : "image.png"}`; });
   seg($("#resSplit"), v => { resSplit = v; drawResults(); });
   $("#go").onclick = runBoth;
   RESULTS = await (await fetch("/api/results")).json();
@@ -199,9 +221,10 @@ function fillTasks() {
 
 function showTask() {
   const t = TASKS.find(t => t.id === $("#task").value); if (!t) return;
-  $("#sceneImg").src = `/api/tasks/${t.id}/image.png`;
+  $("#sceneImg").src = `/api/tasks/${t.id}/${view === "cinema" ? "cinema.jpg" : "image.png"}`;
   $("#instr").textContent = t.instruction;
   $("#taskMeta").textContent = `${DIFF[t.difficulty]} · ${t.split === "heldout" ? "held-out" : "tuning"} set · ${t.id}`;
+  $("#traps").innerHTML = t.traps.map(x => `<span class="chip" data-tip="${esc(TRAP[x] || x)}">${esc(x.replace(/_/g, " "))}</span>`).join("");
   ["L", "R"].forEach(s => renderCol(s, null));
 }
 

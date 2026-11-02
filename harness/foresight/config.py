@@ -28,6 +28,8 @@ MODEL_LARGE = _env("FORESIGHT_MODEL_LARGE") or MODEL
 MODEL_FT = _env("FORESIGHT_MODEL_FT")
 
 CONCURRENCY = int(_env("FORESIGHT_CONCURRENCY", "8"))
+# "3d" renders in the MuJoCo packing station (needs mujoco + warehouse/), "2d" is the flat Pillow view.
+RENDER = _env("FORESIGHT_RENDER", "3d" if ((ROOT / "warehouse").is_dir() or (ROOT.parent / "warehouse").is_dir()) else "2d")
 MAX_REPLANS = int(_env("FORESIGHT_MAX_REPLANS", "2"))
 # If the plan still fails the check after all replans, refuse instead of executing it.
 FAIL_CLOSED = _env("FORESIGHT_FAIL_CLOSED", "1") == "1"

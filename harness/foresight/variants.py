@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from . import config, prompts
 from .llm import Call, parse_json
-from .render import png_bytes
+from .render import image_bytes
 from .schema import Goal, Plan, Scene, Step, Task, step_dict
 from .sim import score
 from .validator import check
@@ -52,7 +52,7 @@ def to_scene(obj) -> Optional[Scene]:
 
 
 async def _direct(llm, model: str, task: Task, constrained: bool) -> dict:
-    png = png_bytes(task)
+    png = image_bytes(task)
     if constrained:
         call = await llm.chat(model, prompts.direct_constrained(png, task.instruction), "direct_constrained",
                               schema=prompts.PLAN_SCHEMA)
@@ -65,7 +65,7 @@ async def _direct(llm, model: str, task: Task, constrained: bool) -> dict:
 
 async def foresight(llm, model: str, task: Task, max_replans: int, fail_closed: bool) -> dict:
     calls: List[Call] = []
-    call = await llm.chat(model, prompts.perceive(png_bytes(task)), "perceive", schema=prompts.SCENE_SCHEMA)
+    call = await llm.chat(model, prompts.perceive(image_bytes(task)), "perceive", schema=prompts.SCENE_SCHEMA)
     calls.append(call)
     scene = to_scene(parse_json(call.text))
     out = {"calls": calls, "attempts": [], "perceived": scene, "final_plan": None, "passed_check": False,
