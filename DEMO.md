@@ -17,19 +17,17 @@ Say "the Foresight harness" and "the fine-tuned model" separately. They are diff
 3. [W&B project](https://wandb.ai/kaushik-siva88/foresight-warehouse), logged in
 4. This file, as a backup for the numbers
 
-## Script
+## Script, word for word
 
-### 0:00 to 0:15: The problem (A)
+**[Kaushik, 0:00]**
 
-> Warehouse robots pack orders with hard rules: heavy items down, nothing on fragile items, stay under the weight limit. Models write plans well, but nothing checks them before the arm moves. So we built that check.
+Warehouse robots pack orders under hard rules: heavy items go down, nothing goes on fragile items, and cartons stay under the weight limit. Models can write these plans, but nothing checks them before the arm moves. So we built that check, and we call it Foresight.
 
-### 0:15 to 0:45: Watch it (A)
+**[Kaushik, 0:15. Play `extreme_reel.mp4` from the second title card, one order only.]**
 
-Play `extreme_reel.mp4` from the second title card, one order only.
+These are the hardest orders we could build: seven or eight items, mixing heavy, fragile, liquid and electronics. Both sides use the same model. On the left, it plans alone. On the right, Foresight predicts each step, checks the rules, and runs a physics dry run before anything moves. On the left, a rule breaks. On the right, it's packed correctly.
 
-> These are the hardest orders we could build. Same model on both sides. On the left it plans alone. On the right, Foresight predicts each step, checks the rules, and runs a physics dry run before anything moves. Left, a rule breaks. Right, it's packed.
-
-### 0:45 to 1:10: Harness results (B)
+**[Teammate, 0:45. Show this table.]**
 
 | 30 extreme orders | Plain GLM | GLM + Foresight |
 |---|---|---|
@@ -37,11 +35,9 @@ Play `extreme_reel.mp4` from the second title card, one order only.
 | When it read the image right | 17/22 | **22/22** |
 | Median latency | 10 s | 31 s |
 
-> We fixed these orders in advance, ran them once, and scored every plan in physics. Foresight won 5 and lost none. That's promising, not proof. It costs three times the latency and under a cent per extra correct order.
+We fixed thirty extreme orders in advance, ran them once, and scored every plan in physics. The plain model got twenty right. With Foresight, it got twenty-five, with five wins and no losses. When it read the camera correctly, it got all twenty-two. That's promising, not proof, and it costs three times the latency, at under a cent per extra correct order.
 
-### 1:10 to 1:45: Fine-tuning (B)
-
-Show the W&B curve for a few seconds.
+**[Teammate, 1:10. Show the W&B curve, then this table.]**
 
 | 50 held-out orders, with Foresight | Base GLM | Fine-tuned GLM |
 |---|---|---|
@@ -49,15 +45,13 @@ Show the W&B curve for a few seconds.
 | Correct overall | 43/50 | 44/50 |
 | Hard orders correct | **9/12** | 6/12 |
 
-> Every remaining failure came from misreading the camera, so we tuned on that, with 600 simulated examples for about $9. Vision became perfect on this set. But overall success barely moved and hard orders got worse, because we also turned reasoning off. That's the tradeoff.
+Every remaining failure came from misreading the camera, so that's what we fine-tuned, using six hundred simulated examples for about nine dollars. On fifty new orders, correct image reads went from thirty-two to all fifty. But overall success barely moved, forty-three to forty-four, and hard orders got worse, because we also turned reasoning off. That's the real tradeoff.
 
-**Extreme test on the retrained model:** RESULT PENDING. Fill this in before presenting. If it isn't ready, don't mention it.
+**[Kaushik, 1:45]**
 
-### 1:45 to 2:00: Close (A)
+Next, we'd ship fine-tuned vision with a reasoning planner, behind the Foresight check. A plan that fails never reaches the robot. That's safety you can measure, for under a cent per extra correct order. Thank you.
 
-> Next we'd ship fine-tuned vision with a reasoning planner, behind the Foresight check. A failed plan never reaches the robot. That's safety you can measure, for under a cent per extra correct order.
-
-The combined system is **untested**, so keep saying "next we'd ship" unless it has been run.
+**Retrained model on the extreme test:** result pending. Add a line only if it's ready and worth mentioning.
 
 ## Rules for presenting
 
