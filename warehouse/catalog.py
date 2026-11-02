@@ -38,8 +38,8 @@ CATALOG = {s.name: s for s in [
 # Totes sit to the robot's right, cartons to its left. The robot base is the origin; the bench top is z=0.
 TOTE_SIZE = (0.18, 0.28, 0.035)  # outer x, y, wall height
 TOTES = {
-    "T1": (0.22, -0.18), "T2": (0.42, -0.18), "T3": (0.60, -0.18),
-    "T4": (0.22, -0.47), "T5": (0.42, -0.47), "T6": (0.60, -0.47),
+    "T1": (0.20, -0.16), "T2": (0.385, -0.16), "T3": (0.57, -0.16),
+    "T4": (0.20, -0.45), "T5": (0.385, -0.45), "T6": (0.57, -0.45),
 }
 UNIT_OFFSETS_Y = [-0.085, 0.085, 0.0]
 

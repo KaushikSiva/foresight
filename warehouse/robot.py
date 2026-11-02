@@ -15,10 +15,8 @@ GRIPPER_OPEN, GRIPPER_CLOSED = 255.0, 0.0
 
 
 def _top_down_quat():
-    """Hand pointing straight down, with the fingers closing along world x."""
-    down, yaw, out = np.array([0.0, 1.0, 0.0, 0.0]), np.array([np.cos(np.pi / 4), 0.0, 0.0, np.sin(np.pi / 4)]), np.zeros(4)
-    mujoco.mju_mulQuat(out, yaw, down)
-    return out
+    """Hand pointing straight down, with the fingers closing along world y."""
+    return np.array([0.0, 1.0, 0.0, 0.0])
 
 
 class Station:
@@ -30,6 +28,7 @@ class Station:
         joints = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, f"joint{i}") for i in range(1, 8)]
         self.qadr = np.array([m.jnt_qposadr[j] for j in joints])
         self.dadr = np.array([m.jnt_dofadr[j] for j in joints])
+        self.limits = np.array([m.jnt_range[j] for j in joints])
         self.hand = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "hand")
         self.finger_q = [m.jnt_qposadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, f"finger_joint{i}")] for i in (1, 2)]
         self.quat = _top_down_quat()
@@ -105,7 +104,7 @@ class Station:
             jac = np.vstack((jacp[:, self.dadr], jacr[:, self.dadr]))
             step = jac.T @ np.linalg.solve(jac @ jac.T + 1e-4 * np.eye(6), error)
             null = (np.eye(7) - np.linalg.pinv(jac) @ jac) @ (READY - d.qpos[self.qadr]) * 0.05
-            d.qpos[self.qadr] += np.clip(step + null, -0.2, 0.2)
+            d.qpos[self.qadr] = np.clip(d.qpos[self.qadr] + np.clip(step + null, -0.2, 0.2), self.limits[:, 0], self.limits[:, 1])
         self.max_ik_error = max(self.max_ik_error, float(np.linalg.norm(error[:3])))
         return d.qpos[self.qadr].copy()
 
@@ -126,6 +125,24 @@ class Station:
             self._step()
         self._step(100)
 
+    def swing(self, target, speed=1.1):
+        """Travel in joint space, so long moves never pass through the singularity over the base."""
+        target = np.array(target, float)
+        angle = np.arctan2(target[1], target[0])
+        seed = READY.copy()
+        seed[0], seed[6] = angle, READY[6] + angle
+        goal = seed
+        for _ in range(6):
+            goal = self._ik(goal, target)
+        start = self.data.qpos[self.qadr].copy()
+        duration = max(0.4, np.max(np.abs(goal - start)) / speed)
+        ticks = int(duration / (self.model.opt.timestep * CONTROL_STEPS))
+        for i in range(1, ticks + 1):
+            s = i / ticks
+            self.data.ctrl[:7] = start + (goal - start) * (s * s * (3 - 2 * s))
+            self._step()
+        self._step(100)
+
     def gripper(self, value, seconds=0.35):
         self.data.ctrl[7] = value
         self._settle(seconds)
@@ -141,7 +158,7 @@ class Station:
         top = pos[2] + sku.height
         grip_z = max(top - 0.03, pos[2] + 0.012)
         self.caption = f"pick {sku.name} from {tote}"
-        self.move([pos[0], pos[1], TRAVEL_Z])
+        self.swing([pos[0], pos[1], TRAVEL_Z])
         self.move([pos[0], pos[1], grip_z], speed=0.25)
         self.gripper(GRIPPER_CLOSED)
         self.held = body
@@ -164,7 +181,7 @@ class Station:
         stack = sum(CATALOG[s].height for s in column)
         body_z = self.data.xpos[self.held][2]
         target_bottom = 0.004 + stack + 0.006
-        self.move([x, y, TRAVEL_Z])
+        self.swing([x, y, TRAVEL_Z])
         tcp_z = self._tcp()[2]
         self.move([x, y, tcp_z - (body_z - target_bottom)], speed=0.2)
         self.placed.append(self.unit_bodies[self.held])
@@ -186,6 +203,8 @@ class Station:
                 a, b = m.geom_bodyid[contact.geom1], m.geom_bodyid[contact.geom2]
                 if a not in self.unit_bodies or b not in self.unit_bodies:
                     continue
+                if self.unit_bodies[a] not in self.placed or self.unit_bodies[b] not in self.placed:
+                    continue
                 mujoco.mj_contactForce(m, d, i, force)
                 lower, upper = (a, b) if d.xpos[a][2] < d.xpos[b][2] else (b, a)
                 totals[lower] = totals.get(lower, 0.0) + abs(force[0])
@@ -206,7 +225,7 @@ class Station:
             elif placed:
                 result["spilled"].append(unit)
             load = self.loads.get(body, 0.0)
-            result["loads_n"][unit] = round(load, 2)
+            result["loads_n"][unit] = round(float(load), 2)
             if placed and CATALOG[sku].fragile and load > FRAGILE_LIMIT_N:
                 result["crushed"].append(unit)
         result["loads_n"] = {k: v for k, v in result["loads_n"].items() if v > 0}
@@ -233,7 +252,7 @@ def execute(scene_totes, calls, seed=0, on_frame=None):
             station.caption = "seal carton"
             station._settle(0.5)
     if on_frame:
-        station.move([0.3, 0.0, 0.42])
+        station.swing([0.3, 0.0, 0.42])
         station._settle(0.5)
     report = station.report(state["carton"])
     report.update(carton=state["carton"], rule_problems=problems, halted=halted, sealed=state["sealed"],
