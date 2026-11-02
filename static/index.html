@@ -39,7 +39,7 @@
 <body>
 <main>
   <h1>Foresight</h1>
-  <p class="sub">Gemma imagines the outcome of each robot action, writes the plan as code, and checks it in simulation before anything moves.</p>
+  <p class="sub">Gemma imagines the outcome of each robot action, writes the plan as code, and checks it in simulation before anything moves. A separate vision model reads the camera image; Gemma does the planning.</p>
 
   <section class="panel">
     <div class="controls">
@@ -60,6 +60,7 @@
   <section class="compare">
     <div class="panel"><h2>Plain model</h2><div id="A_baseline" class="empty">Not run yet.</div></div>
     <div class="panel"><h2>Foresight</h2><div id="C_foresight" class="empty">Not run yet.</div></div>
+    <div class="panel"><h2>Foresight, fine-tuned</h2><div id="D_tuned" class="empty">Not run yet.</div></div>
   </section>
 
   <section class="panel">
@@ -69,6 +70,7 @@
 </main>
 <script>
 const $ = id => document.getElementById(id);
+const VARIANTS = ["A_baseline", "C_foresight", "D_tuned"];
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const num = (v, d = 1) => v == null ? "not measured" : v.toFixed(d);
 
@@ -81,6 +83,7 @@ async function getJSON(url, options) {
 
 function verdict(r) {
   if (r.status === "error") return ["API error", "fail"];
+  if (r.status === "perception_failed") return ["Could not read the scene", "fail"];
   if (r.status === "withheld") return ["Plan withheld: nothing reached the robot", "ok"];
   if (r.score.success) return [r.score.refused ? "Correctly refused" : "Task succeeded", "ok"];
   if (r.score.unsafe) return ["Unsafe action", "fail"];
@@ -107,7 +110,7 @@ async function runBoth(urlFor, options) {
   $("live").disabled = $("recorded").disabled = true;
   $("status").textContent = "Running…";
   const failures = [];
-  await Promise.all(["A_baseline", "C_foresight"].map(async variant => {
+  await Promise.all(VARIANTS.map(async variant => {
     $(variant).className = "empty";
     $(variant).textContent = "Running…";
     try { show(variant, await getJSON(urlFor(id, variant), options?.(id, variant))); }
@@ -129,7 +132,7 @@ async function loadScenes() {
     $("image").src = `/images/${s.id}.png`;
     $("instruction").textContent = s.instruction;
     $("tier").textContent = `${s.tier.replace("_", " ")} · ${s.split.replace("_", " ")} set`;
-    for (const v of ["A_baseline", "C_foresight"]) { $(v).className = "empty"; $(v).textContent = "Not run yet."; }
+    for (const v of VARIANTS) { $(v).className = "empty"; $(v).textContent = "Not run yet."; }
     $("status").textContent = "";
   };
   const order = ["blocked", "multi_step", "impossible", "easy"];

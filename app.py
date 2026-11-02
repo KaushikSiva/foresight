@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from foresight.agent import VARIANTS
-from foresight.evaluation import IMAGES, latest_runs, load_run, load_scenes, run_scene, summarize
+from foresight.evaluation import IMAGES, latest_runs, load_perception, load_run, load_scenes, run_scene, summarize
 from foresight.llm import FireworksClient
 from foresight.sim import execute, parse_program
 
@@ -56,7 +56,8 @@ def plan(request: PlanRequest):
         raise HTTPException(404, "unknown scene or variant")
     if not os.environ.get("FIREWORKS_API_KEY"):
         raise HTTPException(503, "FIREWORKS_API_KEY is not set, so live planning is off")
-    return {"source": "live", **_with_truth_run(scene, run_scene(FireworksClient(), request.variant, scene))}
+    perception = load_perception()[scene["id"]]
+    return {"source": "live", **_with_truth_run(scene, run_scene(FireworksClient(), request.variant, scene, perception))}
 
 
 @app.get("/api/recorded/{scene_id}/{variant}")

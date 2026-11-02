@@ -1,5 +1,6 @@
 """Run a variant over a split, score against the true state, and summarize logged runs."""
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -8,8 +9,10 @@ from .sim import score
 
 ROOT = Path(__file__).resolve().parent.parent
 IMAGES = ROOT / "data" / "images"
-RUNS = ROOT / "runs"
-PRICES = ROOT / "prices.json"  # {"model": [usd_per_million_input, usd_per_million_output]}
+RUNS = Path(os.environ.get("FORESIGHT_RUNS", ROOT / "runs"))
+PERCEPTION_CACHE = ROOT / "data" / "perception.jsonl"
+# {"model": {"per_million": [input, output]}} for serverless, or {"model": {"gpu_hour": 8}} for dedicated GPUs.
+PRICES = ROOT / "prices.json"
 
 
 def load_scenes(split=None):
@@ -18,26 +21,53 @@ def load_scenes(split=None):
     return [s for s in scenes if split is None or s["split"] == split]
 
 
-def run_scene(client, variant, scene):
+def load_perception():
+    with open(PERCEPTION_CACHE) as f:
+        return {r["scene"]: r for r in map(json.loads, f)}
+
+
+def perception_correct(scene, perception):
+    """True only if the scene and goal were read exactly right."""
+    if not perception["perceived"]:
+        return False
+    truth, seen = scene["state"], perception["perceived"]
+    return (seen["objects"] == truth["objects"]
+            and {k: v["open"] for k, v in seen["receptacles"].items()} == {k: v["open"] for k, v in truth["receptacles"].items()}
+            and sorted(perception["goal"]) == sorted(scene["goal"]))
+
+
+NO_SCORE = {"success": False, "unsafe": False, "invalid": False, "refused": False, "violation": None}
+
+
+def run_scene(client, variant, scene, perception):
     record = {"scene": scene["id"], "tier": scene["tier"], "variant": variant}
+    perception_calls = [perception["call"]] if perception.get("call") else []
+    if not perception["perceived"]:
+        return {**record, "status": "perception_failed", "error": perception["error"], "program": None,
+                "calls": perception_calls, "score": dict(NO_SCORE)}
     try:
-        output = VARIANTS[variant](client, scene["instruction"], IMAGES / f"{scene['id']}.png")
+        output = VARIANTS[variant](client, scene["instruction"], perception)
     except RuntimeError as e:
-        return {**record, "status": "error", "error": str(e), "calls": [],
-                "score": {"success": False, "unsafe": False, "invalid": False, "refused": False, "violation": None}}
+        return {**record, "status": "error", "error": str(e), "calls": perception_calls, "score": dict(NO_SCORE)}
     record.update(output)
+    record["calls"] = perception_calls + record["calls"]
+    record["perception_correct"] = perception_correct(scene, perception)
     if record.get("program"):
         record["score"] = score(scene, record["program"])
     else:
         # A withheld plan never reaches the robot, and it does not count as a correct refusal.
-        record["score"] = {"success": False, "unsafe": False, "invalid": False, "refused": False, "violation": None}
+        record["score"] = dict(NO_SCORE)
     return record
 
 
 def run_split(client, variant, split, limit=None, workers=8):
-    scenes = load_scenes(split)[:limit]
+    scenes = load_scenes(split)
+    if limit:
+        # Debug runs sample evenly across tiers rather than taking only the first tier.
+        scenes = scenes[::max(1, len(scenes) // limit)][:limit]
+    perception = load_perception()
     with ThreadPoolExecutor(workers) as pool:
-        return list(pool.map(lambda s: run_scene(client, variant, s), scenes))
+        return list(pool.map(lambda s: run_scene(client, variant, s, perception[s["id"]]), scenes))
 
 
 def _percentile(values, q):
@@ -53,7 +83,11 @@ def _cost(calls, prices):
         price = prices.get(call["model"])
         if price is None:
             return None
-        total += (call["prompt_tokens"] * price[0] + call["completion_tokens"] * price[1]) / 1e6
+        if "gpu_hour" in price:
+            # Time this call held the GPU. Concurrency could lower the real cost, so this is an upper estimate.
+            total += call["latency_s"] * price["gpu_hour"] / 3600
+        else:
+            total += (call["prompt_tokens"] * price["per_million"][0] + call["completion_tokens"] * price["per_million"][1]) / 1e6
     return total
 
 
@@ -72,6 +106,7 @@ def summarize(records):
         "unsafe": sum(r["score"]["unsafe"] for r in records),
         "invalid": sum(r["score"]["invalid"] for r in records),
         "withheld": sum(r["status"] == "withheld" for r in records),
+        "perception_failed": sum(r["status"] == "perception_failed" for r in records),
         "errors": sum(r["status"] == "error" for r in records),
         "correct_refusals": sum(r["score"]["success"] for r in impossible),
         "impossible_total": len(impossible),

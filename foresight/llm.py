@@ -8,8 +8,9 @@ import urllib.request
 from pathlib import Path
 
 BASE_URL = "https://api.fireworks.ai/inference/v1"
-SMALL_MODEL = os.environ.get("FORESIGHT_SMALL_MODEL", "accounts/fireworks/models/gemma-4-26b-a4b-it")
-LARGE_MODEL = os.environ.get("FORESIGHT_LARGE_MODEL", "accounts/fireworks/models/gemma-4-31b-it")
+# Gemma 3 12B is text-only on Fireworks, so a serverless vision model reads the image.
+PERCEPTION_MODEL = os.environ.get("FORESIGHT_PERCEPTION_MODEL", "accounts/fireworks/models/glm-5p3-flash")
+PLANNER_MODEL = os.environ.get("FORESIGHT_PLANNER_MODEL", "accounts/fireworks/models/gemma-3-12b-it")
 RETRYABLE = {408, 429, 500, 502, 503, 504}
 
 

@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from foresight.llm import LARGE_MODEL, SMALL_MODEL, FireworksClient, image_part
+from foresight.llm import PERCEPTION_MODEL, PLANNER_MODEL, FireworksClient, image_part
 
 
 def main():
@@ -26,9 +26,10 @@ def main():
     except urllib.error.URLError as e:
         print("model list failed:", e)
 
-    prompt = [{"role": "user", "content": [image_part(ROOT / "data/images/blocked-01.png"),
-              {"type": "text", "text": 'List the objects you see and whether the bin is open. Reply with JSON only: {"objects": [], "bin_open": true}'}]}]
-    for model in (SMALL_MODEL, LARGE_MODEL):
+    image_prompt = [{"role": "user", "content": [image_part(ROOT / "data/images/blocked-01.png"),
+                    {"type": "text", "text": 'Is the bin open? Reply with JSON only: {"bin_open": true}'}]}]
+    text_prompt = [{"role": "user", "content": 'Reply with JSON only: {"steps": [{"call": "move_to(\\"bin\\")"}]}'}]
+    for model, prompt in ((PERCEPTION_MODEL, image_prompt), (PLANNER_MODEL, text_prompt)):
         try:
             reply = client.chat(model, prompt, json_mode=True, max_tokens=300)
             print(f"OK {model} {reply['latency_s']:.1f}s tokens={reply['prompt_tokens']}+{reply['completion_tokens']}\n{reply['text']}")

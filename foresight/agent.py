@@ -1,8 +1,9 @@
-"""The four planner variants. None of them ever sees the scene's true state."""
+"""Perception plus the planner variants. None of them ever sees the scene's true state."""
 import json
+import os
 import re
 
-from .llm import LARGE_MODEL, SMALL_MODEL, image_part
+from .llm import PERCEPTION_MODEL, PLANNER_MODEL, image_part
 from .scenes import OBJECTS, RECEPTACLES
 from .sim import TABLE, ParseError, execute, goal_met, parse_program
 
@@ -15,17 +16,10 @@ LEGEND = (
 )
 SKILLS = (
     'Skills: move_to("x"), pick("obj"), place("obj", "target"), open("container"), close("container"), refuse("reason").\n'
-    "Rules: move_to an object before pick. move_to the target before place. Hold one object at a time. "
+    "Rules: move_to an object before pick. move_to the target before place, open or close. Hold one object at a time. "
     "The gripper must be empty to open or close. Open a closed container before placing into it. "
     'A full receptacle must be emptied first; place("obj", "table") is allowed. '
-    "If a requested object or receptacle is not in the image, the whole program must be one refuse call."
-)
-BASELINE_PROMPT = "Write a robot program for this instruction, one skill call per line, with no explanation.\n{skills}\n{legend}\nInstruction: {instruction}"
-CONSTRAINED_PROMPT = (
-    '{legend}\n{skills}\nExample for "Put the red block in the closed bin":\n'
-    '{{"program": ["move_to(\\"bin\\")", "open(\\"bin\\")", "move_to(\\"red_block\\")", "pick(\\"red_block\\")", '
-    '"move_to(\\"bin\\")", "place(\\"red_block\\", \\"bin\\")"]}}\n'
-    'Reply with JSON only: {{"program": [one skill call per string]}}.\nInstruction: {instruction}'
+    "If a requested object or receptacle is not in the scene, the whole program must be one refuse call."
 )
 PERCEIVE_PROMPT = (
     "{legend}\nReport only what is visible, using the exact names above. Include only receptacles and objects that are in the image. "
@@ -33,11 +27,27 @@ PERCEIVE_PROMPT = (
     'Reply with JSON only: {{"objects": {{"name": {{"on": "table"}}}}, "receptacles": {{"name": {{"open": true}}}}, '
     '"goal": [["object", "target"]]}}.\nInstruction: {instruction}'
 )
+BASELINE_PROMPT = (
+    "Write a robot program for this instruction, one skill call per line, with no explanation.\n"
+    "Scene: {perceived}\n{skills}\nInstruction: {instruction}"
+)
+CONSTRAINED_PROMPT = (
+    'Scene: {perceived}\n{skills}\nExample for "Put the red block in the closed bin":\n'
+    '{{"program": ["move_to(\\"bin\\")", "open(\\"bin\\")", "move_to(\\"red_block\\")", "pick(\\"red_block\\")", '
+    '"move_to(\\"bin\\")", "place(\\"red_block\\", \\"bin\\")"]}}\n'
+    'Reply with JSON only: {{"program": [one skill call per string]}}.\nInstruction: {instruction}'
+)
 PLAN_PROMPT = (
     "Scene you perceived: {perceived}\nGoal: {goal}\n{skills}\n"
-    "For each step, imagine the result. Only list what that step changes: "
-    '"holding" (object or null), "on" (object to new location), "open" (container to true or false).\n'
-    'Reply with JSON only: {{"steps": [{{"call": "pick(\\"cup\\")", "expect": {{"holding": "cup"}}}}]}}.\n{feedback}'
+    "For each step, imagine the result in expect, listing only what that step changes. Use {{}} if nothing changes.\n"
+    'Reply with JSON only, in exactly this format: {{"steps": ['
+    '{{"call": "move_to(\\"bin\\")", "expect": {{}}}}, '
+    '{{"call": "open(\\"bin\\")", "expect": {{"open": {{"bin": true}}}}}}, '
+    '{{"call": "move_to(\\"cup\\")", "expect": {{}}}}, '
+    '{{"call": "pick(\\"cup\\")", "expect": {{"holding": "cup"}}}}, '
+    '{{"call": "move_to(\\"bin\\")", "expect": {{}}}}, '
+    '{{"call": "place(\\"cup\\", \\"bin\\")", "expect": {{"holding": null, "on": {{"cup": "bin"}}}}}}'
+    ']}}.{feedback}'
 )
 
 
@@ -84,12 +94,38 @@ def normalize_perception(raw):
     return {"objects": objects, "receptacles": receptacles, "holding": None, "at": None}, goal
 
 
+def perceive(client, instruction, image, model=PERCEPTION_MODEL):
+    """Read the image once. Every planner variant then shares this same output."""
+    reply = client.chat(model, [{"role": "user", "content": [
+        image_part(image),
+        {"type": "text", "text": PERCEIVE_PROMPT.format(legend=LEGEND, instruction=instruction)},
+    ]}], json_mode=True)
+    call = {k: reply[k] for k in ("model", "prompt_tokens", "completion_tokens", "latency_s")}
+    try:
+        perceived, goal = normalize_perception(extract_json(reply["text"]))
+        return {"perceived": perceived, "goal": goal, "error": None, "call": call}
+    except ModelOutputError as e:
+        return {"perceived": None, "goal": None, "error": str(e), "call": call}
+
+
+def plan_prompt(perceived, goal, feedback=""):
+    return PLAN_PROMPT.format(perceived=json.dumps(perceived), goal=json.dumps(goal), skills=SKILLS, feedback=feedback)
+
+
+def replan_feedback(errors, steps):
+    return ("\nYour previous plan failed these checks. Fix them:\n" + "\n".join(errors)
+            + f"\nPrevious plan: {json.dumps(steps)}")
+
+
 def check_plan(perceived, goal, steps):
     """Check imagined steps against the perceived scene. Returns (errors, predictions_right, predictions_total)."""
     calls = []
     try:
         for step in steps:
-            calls.extend(parse_program(step["call"]))
+            parsed = parse_program(step["call"])
+            if len(parsed) != 1:
+                raise ParseError("each step must hold exactly one skill call")
+            calls.extend(parsed)
     except (ParseError, KeyError, TypeError) as e:
         return [f"bad program: {e}"], 0, 0
 
@@ -97,6 +133,8 @@ def check_plan(perceived, goal, steps):
                if item != TABLE and item not in perceived["objects"] and item not in perceived["receptacles"]]
     refused = any(name == "refuse" for name, _ in calls)
     if refused:
+        if len(calls) > 1:
+            return ["refuse must be the only step"], 0, 0
         return ([] if missing else ["refused, but every requested item is in the scene"]), 0, 0
     if missing:
         return [f"{', '.join(missing)} not in the scene; the program must be one refuse call"], 0, 0
@@ -112,11 +150,9 @@ def check_plan(perceived, goal, steps):
         if "holding" in expect:
             checks.append((f"holding {expect['holding']}", expect["holding"], state["holding"]))
         for obj, location in (expect.get("on") or {}).items():
-            actual = state["objects"].get(obj, {}).get("on")
-            checks.append((f"{obj} on {location}", location, actual))
+            checks.append((f"{obj} on {location}", location, state["objects"].get(obj, {}).get("on")))
         for name, is_open in (expect.get("open") or {}).items():
-            actual = state["receptacles"].get(name, {}).get("open")
-            checks.append((f"{name} open={is_open}", is_open, actual))
+            checks.append((f"{name} open={is_open}", is_open, state["receptacles"].get(name, {}).get("open")))
         for label, predicted, actual in checks:
             total += 1
             if predicted == actual:
@@ -133,8 +169,8 @@ class Run:
         self.client = client
         self.calls = []
 
-    def ask(self, model, messages, json_mode=False):
-        reply = self.client.chat(model, messages, json_mode=json_mode)
+    def ask(self, model, prompt, json_mode=False):
+        reply = self.client.chat(model, [{"role": "user", "content": prompt}], json_mode=json_mode)
         self.calls.append({k: reply[k] for k in ("model", "prompt_tokens", "completion_tokens", "latency_s")})
         return reply["text"]
 
@@ -142,82 +178,49 @@ class Run:
         return {"calls": self.calls, **fields}
 
 
-def _user(text, image=None):
-    content = [{"type": "text", "text": text}]
-    if image:
-        content.insert(0, image_part(image))
-    return [{"role": "user", "content": content}]
-
-
-def baseline(client, instruction, image, model=SMALL_MODEL):
+def baseline(client, instruction, perception, model=None):
     run = Run(client)
-    text = run.ask(model, _user(BASELINE_PROMPT.format(skills=SKILLS, legend=LEGEND, instruction=instruction), image))
+    text = run.ask(model or PLANNER_MODEL, BASELINE_PROMPT.format(
+        perceived=json.dumps(perception["perceived"]), skills=SKILLS, instruction=instruction))
     return run.record(status="planned", program=_strip_fences(text))
 
 
-def constrained(client, instruction, image, model=SMALL_MODEL):
+def constrained(client, instruction, perception, model=None):
     run = Run(client)
-    text = run.ask(model, _user(CONSTRAINED_PROMPT.format(skills=SKILLS, legend=LEGEND, instruction=instruction), image), json_mode=True)
+    text = run.ask(model or PLANNER_MODEL, CONSTRAINED_PROMPT.format(
+        perceived=json.dumps(perception["perceived"]), skills=SKILLS, instruction=instruction), json_mode=True)
     try:
-        program = extract_json(text)["program"]
-        return run.record(status="planned", program="\n".join(program))
+        return run.record(status="planned", program="\n".join(extract_json(text)["program"]))
     except (ModelOutputError, KeyError, TypeError) as e:
         return run.record(status="planned", program="", output_error=str(e))
 
 
-def _foresight_loop(run, model, perceived, goal, attempts, history):
-    """Plan, check and replan on one model. Returns a program only if it passes the check."""
-    feedback = ""
-    for _ in range(attempts):
-        text = run.ask(model, _user(PLAN_PROMPT.format(perceived=json.dumps(perceived), goal=json.dumps(goal),
-                                                       skills=SKILLS, feedback=feedback)), json_mode=True)
+def foresight(client, instruction, perception, model=None):
+    """Imagine, check and replan. Returns a program only if it passes the check."""
+    run = Run(client)
+    perceived, goal = perception["perceived"], perception["goal"]
+    history, feedback = [], ""
+    for _ in range(MAX_REPLANS + 1):
+        text = run.ask(model or PLANNER_MODEL, plan_prompt(perceived, goal, feedback), json_mode=True)
         try:
             steps = extract_json(text)["steps"]
             errors, right, total = check_plan(perceived, goal, steps)
-        except (ModelOutputError, KeyError, TypeError, AttributeError) as e:
-            steps, errors, right, total = [], [f"unreadable plan: {e}"], 0, 0
-        history.append({"model": model, "steps": steps, "errors": errors, "predictions_right": right, "predictions_total": total})
+        except (ModelOutputError, KeyError, TypeError, AttributeError):
+            steps, errors, right, total = [], ['unreadable plan: use the exact format, such as "on": {"cup": "bin"} and "open": {"bin": true}'], 0, 0
+        history.append({"steps": steps, "errors": errors, "predictions_right": right, "predictions_total": total})
         if not errors:
-            return "\n".join(step["call"] for step in steps)
-        feedback = "Your previous plan failed these checks. Fix them:\n" + "\n".join(errors) + f"\nPrevious plan: {json.dumps(steps)}"
-    return None
+            return run.record(status="planned", program="\n".join(s["call"] for s in steps),
+                              perceived=perceived, goal=goal, history=history)
+        feedback = replan_feedback(errors, steps)
+    return run.record(status="withheld", program=None, perceived=perceived, goal=goal, history=history)
 
 
-def _perceive(run, model, instruction, image):
-    text = run.ask(model, _user(PERCEIVE_PROMPT.format(legend=LEGEND, instruction=instruction), image), json_mode=True)
-    return normalize_perception(extract_json(text))
+def tuned(client, instruction, perception, model=None):
+    """Foresight on the fine-tuned planner. Refuses to fall back silently to the base model."""
+    model = model or os.environ.get("FORESIGHT_TUNED_MODEL")
+    if not model:
+        raise RuntimeError("FORESIGHT_TUNED_MODEL is not set")
+    return foresight(client, instruction, perception, model=model)
 
 
-def foresight(client, instruction, image, model=SMALL_MODEL):
-    run = Run(client)
-    history = []
-    try:
-        perceived, goal = _perceive(run, model, instruction, image)
-    except ModelOutputError as e:
-        return run.record(status="withheld", program=None, history=history, output_error=str(e))
-    program = _foresight_loop(run, model, perceived, goal, MAX_REPLANS + 1, history)
-    return run.record(status="planned" if program else "withheld", program=program, perceived=perceived, goal=goal, history=history)
-
-
-def routed(client, instruction, image, small=SMALL_MODEL, large=LARGE_MODEL):
-    """Foresight on the small model, escalating to the large model only when its plan cannot pass the check."""
-    run = Run(client)
-    history = []
-    perceived = goal = None
-    try:
-        perceived, goal = _perceive(run, small, instruction, image)
-        program = _foresight_loop(run, small, perceived, goal, 2, history)
-    except ModelOutputError:
-        program = None
-    escalated = program is None
-    if escalated:
-        try:
-            perceived, goal = _perceive(run, large, instruction, image)
-            program = _foresight_loop(run, large, perceived, goal, 2, history)
-        except ModelOutputError as e:
-            return run.record(status="withheld", program=None, escalated=True, history=history, output_error=str(e))
-    return run.record(status="planned" if program else "withheld", program=program, escalated=escalated,
-                      perceived=perceived, goal=goal, history=history)
-
-
-VARIANTS = {"A_baseline": baseline, "B_constrained": constrained, "C_foresight": foresight, "D_routed": routed}
+VARIANTS = {"A_baseline": baseline, "B_constrained": constrained, "C_foresight": foresight, "D_tuned": tuned}
