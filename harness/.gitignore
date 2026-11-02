@@ -1,0 +1,13 @@
+.venv/
+.env
+__pycache__/
+data/cache/
+data/live/
+.pytest_cache/
+data/images/
+data/images3d/
+data/labels/
+data/ft/perception.jsonl
+data/review.json
+runs/*-mock.jsonl
+runs/*.log

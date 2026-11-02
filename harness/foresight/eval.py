@@ -1,0 +1,175 @@
+"""Eval harness.
+
+  python -m foresight.eval gen                          # freeze the 200 tasks to data/tasks.json + images
+  python -m foresight.eval run A B C --split tune       # writes runs/tune-A.jsonl, ...
+  python -m foresight.eval run C --split tune --limit 10 --mock
+  python -m foresight.eval run C --ids packing-001 packing-002 packing-006 --name smoke   # smoke test
+  python -m foresight.eval run A B C D --split heldout --confirm-heldout   # once, at the end
+  python -m foresight.eval report
+"""
+import argparse
+import asyncio
+import json
+import sys
+import time
+from typing import List
+
+from . import config
+from .metrics import fmt, table
+from .render import render
+from .scenes import generate
+from .schema import Task
+from .variants import VARIANTS, run_task
+
+TASKS = config.ROOT / "data" / "tasks.json"
+IMAGES = config.ROOT / "data" / "images"
+
+
+def load_tasks() -> List[Task]:
+    if not TASKS.exists():
+        sys.exit("data/tasks.json is missing: run `python -m foresight.eval gen` first")
+    return [Task.model_validate(t) for t in json.loads(TASKS.read_text())]
+
+
+def cmd_gen(args) -> None:
+    if TASKS.exists() and not args.force:
+        sys.exit("data/tasks.json already exists (the eval set is frozen). Use --force to regenerate.")
+    tasks = generate(seed=args.seed)
+    TASKS.parent.mkdir(parents=True, exist_ok=True)
+    TASKS.write_text(json.dumps([t.model_dump() for t in tasks], indent=1))
+    IMAGES.mkdir(parents=True, exist_ok=True)
+    for t in tasks:
+        render(t).save(IMAGES / f"{t.id}.png")
+    print(f"wrote {len(tasks)} tasks and flat images ({sum(t.split == 'heldout' for t in tasks)} held out)")
+    if config.RENDER == "3d":
+        render_3d(tasks)
+
+
+def _render_one(task_json: str) -> str:
+    from .render3d import jpeg_bytes
+    t = Task.model_validate_json(task_json)
+    jpeg_bytes(t)
+    jpeg_bytes(t, camera="cinema")
+    return t.id
+
+
+def render_3d(tasks: List[Task], workers: int = 4) -> None:
+    """Pre-render every task in the MuJoCo station (overhead for the model, cinema for the demo)."""
+    import shutil
+    from concurrent.futures import ProcessPoolExecutor
+    from .render3d import CACHE
+    shutil.rmtree(CACHE, ignore_errors=True)
+    t0 = time.time()
+    with ProcessPoolExecutor(workers) as pool:
+        for i, _ in enumerate(pool.map(_render_one, [t.model_dump_json() for t in tasks]), 1):
+            if i % 25 == 0 or i == len(tasks):
+                print(f"  3d: {i}/{len(tasks)} ({time.time() - t0:.0f}s)", flush=True)
+
+
+def manifest(variant: str, split: str, mock: bool) -> dict:
+    """What produced a run: hashes of tasks, prompts and code, plus model and settings. Its id goes on every record."""
+    import hashlib
+    from . import prompts
+    from .variants import models
+    h = lambda b: hashlib.sha256(b).hexdigest()[:12]
+    code = b"".join(p.read_bytes() for p in sorted((config.ROOT / "foresight").glob("*.py")))
+    prompt_text = json.dumps([prompts.RULES, prompts.PLAN_INSTRUCTIONS, prompts.PLAN_SCHEMA, prompts.FORESIGHT_SCHEMA,
+                              prompts.SCENE_SCHEMA, prompts._shots(True), prompts._shots(False)], sort_keys=True)
+    m = {
+        "variant": variant, "split": split, "mock": mock, "models": models(mock),
+        "settings": {"reasoning_effort": config.REASONING_EFFORT, "max_tokens": config.MAX_TOKENS,
+                     "max_replans": config.MAX_REPLANS, "fail_closed": config.FAIL_CLOSED, "render": config.RENDER},
+        "hashes": {"tasks": h(TASKS.read_bytes()), "prompts": h(prompt_text.encode()), "code": h(code)},
+    }
+    m["id"] = h(json.dumps({k: m[k] for k in ("models", "settings", "hashes")}, sort_keys=True).encode())
+    return m
+
+
+async def _run_variant(variant: str, tasks: List[Task], mock: bool) -> List[dict]:
+    from .llm import Fireworks, Mock
+    from .variants import models
+    llm = None if mock else Fireworks()
+    if llm:
+        for m in {v for v in models(False).values() if v}:
+            await llm.warmup(m)
+    done, t0 = 0, time.time()
+
+    async def one(task: Task) -> dict:
+        nonlocal done
+        rec = await run_task(variant, task, Mock(task) if mock else llm)
+        done += 1
+        if done % 10 == 0 or done == len(tasks):
+            print(f"  {variant}: {done}/{len(tasks)}  ({time.time() - t0:.0f}s)", flush=True)
+        return rec
+
+    try:
+        return await asyncio.gather(*(one(t) for t in tasks))
+    finally:
+        if llm:
+            await llm.aclose()
+
+
+def cmd_run(args) -> None:
+    tasks = [t for t in load_tasks() if t.split == args.split]
+    if args.ids:
+        tasks = [t for t in load_tasks() if t.id in set(args.ids)]
+    if args.difficulty:
+        tasks = [t for t in tasks if t.difficulty == args.difficulty]
+    if args.limit:
+        tasks = tasks[: args.limit]
+    config.RUNS.mkdir(exist_ok=True)
+    for v in args.variants:
+        if v not in VARIANTS:
+            sys.exit(f"unknown variant {v}; choose from {list(VARIANTS)}")
+        name = args.name or f"{args.split}-{v}{'-mock' if args.mock else ''}"
+        out = config.RUNS / f"{name}.jsonl"
+        if any(t.split == "heldout" for t in tasks) and not args.mock:
+            if not args.confirm_heldout:
+                sys.exit("held-out runs are one-shot: pass --confirm-heldout")
+            if out.exists() and not args.force:
+                sys.exit(f"{out.name} already exists; the held-out set is run once. --force to overwrite.")
+        print(f"running {v} ({VARIANTS[v]}) on {len(tasks)} {args.split} tasks" + (" [MOCK]" if args.mock else ""))
+        man = {**manifest(v, args.split, args.mock), "started": time.strftime("%Y-%m-%d %H:%M:%S"),
+               "tasks": [t.id for t in tasks]}
+        recs = asyncio.run(_run_variant(v, tasks, args.mock))
+        for r in recs:
+            r["manifest"] = man["id"]
+        out.write_text("".join(json.dumps(r) + "\n" for r in recs))
+        out.with_suffix(".meta.json").write_text(json.dumps(man, indent=1))
+        print(f"  manifest {man['id']}  (tasks {man['hashes']['tasks']}, prompts {man['hashes']['prompts']}, code {man['hashes']['code']})")
+        bad = sum(bool(r["api_errors"]) for r in recs)
+        if bad:
+            print(f"  warning: {bad} tasks had API errors (see api_errors in {out.name})")
+    from .metrics import report
+    print(report())
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog="foresight.eval")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    g = sub.add_parser("gen")
+    g.add_argument("--seed", type=int, default=7)
+    g.add_argument("--force", action="store_true")
+    r = sub.add_parser("run")
+    r.add_argument("variants", nargs="+")
+    r.add_argument("--split", choices=["tune", "heldout"], default="tune")
+    r.add_argument("--difficulty", choices=["easy", "multi_step", "blocked", "impossible", "packing"])
+    r.add_argument("--limit", type=int)
+    r.add_argument("--ids", nargs="+", help="run exactly these task ids (any split)")
+    r.add_argument("--mock", action="store_true", help="offline mock model; numbers are not results")
+    r.add_argument("--name")
+    r.add_argument("--confirm-heldout", action="store_true")
+    r.add_argument("--force", action="store_true")
+    sub.add_parser("report")
+    args = p.parse_args()
+    if args.cmd == "gen":
+        cmd_gen(args)
+    elif args.cmd == "run":
+        cmd_run(args)
+    else:
+        from .metrics import report
+        print(report())
+
+
+if __name__ == "__main__":
+    main()

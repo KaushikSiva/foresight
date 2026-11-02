@@ -1,0 +1,4 @@
+{
+  "_comment": "USD per 1M tokens as [input, output]. Copy to prices.json and use the real Fireworks prices for each model ID.",
+  "accounts/fireworks/models/REPLACE-gemma-vision-model": [0.0, 0.0]
+}

@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foresight</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f2; --surface: #fcfcfb; --surface-2: #f0efec; --border: #e2e0da;
+  --text: #0b0b0b; --text-2: #52514e; --muted: #7d7b75;
+  --accent: #2a78d6; --accent-soft: #cde2fb;
+  --good: #0ca30c; --good-text: #006300; --warn: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --err-bg: #fdf0ec; --ok-bg: #edf7ed;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #242422; --border: #383835;
+    --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8d86;
+    --accent: #3987e5; --accent-soft: #1c3a5e;
+    --good-text: #5fd35f; --err-bg: #3a2420; --ok-bg: #1d301d;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #242422; --border: #383835;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8d86;
+  --accent: #3987e5; --accent-soft: #1c3a5e;
+  --good-text: #5fd35f; --err-bg: #3a2420; --ok-bg: #1d301d;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 28px 16px 64px; }
+h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
+h2 { font-size: 18px; margin: 0 0 14px; }
+.sub { color: var(--text-2); margin: 4px 0 0; }
+header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font: 12px var(--mono); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; color: var(--text-2); }
+.banner { background: var(--err-bg); border: 1px solid var(--serious); border-radius: 10px; padding: 10px 14px; margin-bottom: 18px; color: var(--text); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+section { margin-bottom: 26px; }
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+select, button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; }
+select { max-width: 100%; }
+button { cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; padding: 7px 18px; }
+button:disabled { opacity: .55; cursor: progress; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: var(--surface); }
+.seg button.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.demo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.scene img, .after img { width: 100%; border-radius: 10px; border: 1px solid var(--border); display: block; }
+.instr { font-size: 17px; font-weight: 600; margin: 12px 0 4px; }
+.meta { color: var(--muted); font-size: 13px; }
+.col-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+.col-head select { font-weight: 600; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; padding: 6px 10px; border-radius: 8px; border: 1px solid; margin-bottom: 10px; }
+.badge.good { color: var(--good-text); border-color: var(--good); background: var(--ok-bg); }
+.badge.bad { color: var(--text); border-color: var(--critical); background: var(--err-bg); }
+.badge.meh { color: var(--text); border-color: var(--serious); background: var(--err-bg); }
+.attempt { border-left: 3px solid var(--border); padding: 2px 0 2px 10px; margin: 10px 0; }
+.attempt.fail { border-left-color: var(--serious); }
+.attempt.pass { border-left-color: var(--good); }
+.attempt h4 { margin: 0 0 4px; font-size: 13px; color: var(--text-2); font-weight: 600; }
+ol.steps { margin: 0; padding-left: 22px; font: 12.5px/1.6 var(--mono); }
+ol.steps li.bad { color: var(--critical); font-weight: 700; }
+.expect { color: var(--muted); }
+.errs { margin: 6px 0 0; padding: 8px 10px 8px 26px; background: var(--err-bg); border-radius: 8px; font-size: 13px; }
+.stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); margin: 10px 0; }
+.stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+.after { margin-top: 8px; }
+.after .meta { margin-bottom: 4px; }
+.empty { color: var(--muted); padding: 30px 0; text-align: center; }
+.tabs { display: inline-flex; margin-bottom: 16px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--text-2); font-weight: 600; font-size: 12.5px; }
+th:first-child, td:first-child { text-align: left; }
+.bars .row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 64px; align-items: center; gap: 10px; height: 34px; position: relative; }
+.bars .label { font-size: 13px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bars .track { position: relative; height: 100%; }
+.bars .bar { position: absolute; left: 0; top: 8px; height: 18px; background: var(--accent); border-radius: 0 4px 4px 0; }
+.bars .ci { position: absolute; top: 16px; height: 2px; background: var(--text-2); }
+.bars .ci::before, .bars .ci::after { content: ""; position: absolute; top: -5px; width: 2px; height: 12px; background: var(--text-2); }
+.bars .ci::before { left: 0; } .bars .ci::after { right: 0; }
+.bars .val { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.bars .grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); }
+.axis { display: grid; grid-template-columns: 110px minmax(0, 1fr) 64px; gap: 10px; font-size: 11px; color: var(--muted); }
+.axis .ticks { position: relative; height: 14px; }
+.axis .ticks span { position: absolute; transform: translateX(-50%); }
+.heat td.cell { text-align: center; font-weight: 600; }
+.note { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+#tip { position: fixed; pointer-events: none; background: var(--text); color: var(--bg); font-size: 12.5px; padding: 6px 9px; border-radius: 6px; opacity: 0; transition: opacity .1s; z-index: 10; max-width: 260px; }
+@media (max-width: 900px) { .demo, .grid2 { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Foresight</h1>
+      <p class="sub">Gemma imagines each robot action, writes the plan as code, and checks it in simulation before anything moves.</p>
+    </div>
+    <div class="chips" id="models"><a class="chip" href="/review" style="text-decoration:none">Review tasks and grades →</a></div>
+  </header>
+  <div id="banner"></div>
+
+  <section class="card">
+    <h2>Run a task</h2>
+    <div class="controls">
+      <select id="split"><option value="heldout">Held-out</option><option value="tune">Tuning</option></select>
+      <select id="diff">
+        <option value="blocked">Blocked</option><option value="easy">Easy</option>
+        <option value="multi_step">Multi-step</option><option value="impossible">Impossible</option>
+        <option value="packing">Order packing</option>
+      </select>
+      <select id="task"></select>
+      <div class="seg" id="source">
+        <button data-v="logged" class="on" title="Replay the record from the eval run">Logged</button>
+        <button data-v="live" title="Call Fireworks now">Live</button>
+        <button data-v="mock" title="Offline mock model, pipeline test only">Mock</button>
+      </div>
+      <button class="primary" id="go">Run both</button>
+    </div>
+    <div class="demo">
+      <div class="scene">
+        <div class="seg" id="view" style="margin-bottom:8px">
+          <button data-v="overhead" class="on" title="What the model sees">Robot camera</button>
+          <button data-v="cinema" title="For people; the model never sees this view">3/4 view</button>
+        </div>
+        <img id="sceneImg" alt="The packing bench seen by the robot camera">
+        <div class="instr" id="instr"></div>
+        <div class="meta" id="taskMeta"></div>
+        <div class="chips" id="traps" style="margin-top:8px"></div>
+      </div>
+      <div class="col" id="colL"></div>
+      <div class="col" id="colR"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Results</h2>
+    <div class="tabs seg" id="resSplit">
+      <button data-v="heldout" class="on">Held-out</button><button data-v="tune">Tuning</button>
+    </div>
+    <div id="results"></div>
+  </section>
+</main>
+<div id="tip"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pct = x => x == null ? "–" : (100 * x).toFixed(1) + "%";
+const TRAP = {
+  lookalike: "A distractor one color or shape away from a named item",
+  make_room: "The bin has room for one; something must come out first",
+  swap: "The tray holds an item that must move before the listed first step works",
+  three_items: "The tray's current item belongs in the bin; the tray item is listed first",
+  relocate: "The source is full; an item must leave before the new one fits",
+  closed_lid: "The destination is closed", reclose: "The lid must be closed again at the end",
+  occupied: "The tray already holds something", full: "The destination is full",
+  two_obstacles: "A full box and a closed bin in one task",
+  missing_object: "The named item is not there (a lookalike is)", missing_container: "The named container is not there",
+  over_capacity: "More items than the destination can ever hold",
+  basic: "Closed carton, fragile cup, seal", repack_fragile: "A cup already in the carton must come out and go back last",
+  wrong_item: "A wrong item in the carton must be removed before sealing", two_orders: "Two orders, two cartons",
+  out_of_stock: "One ordered item is not in stock",
+};
+const DIFF = { easy: "Easy", multi_step: "Multi-step", blocked: "Blocked", impossible: "Impossible", packing: "Packing" };
+let COMPARE = {}, META, TASKS = [], source = "logged", resSplit = "heldout", RESULTS = {}, view = "overhead";
+const sides = { L: "A", R: "C" };
+
+const tip = $("#tip");
+document.addEventListener("mousemove", e => {
+  const t = e.target.closest("[data-tip]");
+  if (!t) { tip.style.opacity = 0; return; }
+  tip.innerHTML = t.dataset.tip; tip.style.opacity = 1;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 270) + "px"; tip.style.top = (e.clientY + 14) + "px";
+});
+
+function seg(el, cb) {
+  el.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    el.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); cb(b.dataset.v);
+  });
+}
+
+async function init() {
+  META = await (await fetch("/api/meta")).json();
+  const m = META.models;
+  $("#models").innerHTML = `<a class="chip" href="/review" style="text-decoration:none">Review tasks and grades →</a>` + [["A–C", m.main], ["D small", m.small], ["D large", m.large], ["E fine-tuned", m.ft]]
+    .filter(([, v]) => v).map(([k, v]) => `<span class="chip">${k}: ${esc(v.split("/").pop())}</span>`).join("")
+    || `<span class="chip">no model configured</span>`;
+  TASKS = await (await fetch("/api/tasks")).json();
+  ["L", "R"].forEach(s => renderCol(s, null));
+  fillTasks();
+  $("#split").onchange = $("#diff").onchange = fillTasks;
+  $("#task").onchange = showTask;
+  seg($("#source"), v => source = v);
+  if (META.render !== "3d") $("#view").style.display = "none";
+  seg($("#view"), v => { view = v; const t = $("#task").value; $("#sceneImg").src = `/api/tasks/${t}/${v === "cinema" ? "cinema.jpg" : "image.png"}`; });
+  seg($("#resSplit"), v => { resSplit = v; drawResults(); });
+  $("#go").onclick = runBoth;
+  RESULTS = await (await fetch("/api/results")).json();
+  COMPARE = await (await fetch("/api/compare")).json();
+  if (!RESULTS.heldout && RESULTS.tune) { resSplit = "tune"; $("#resSplit").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === "tune")); }
+  drawResults();
+}
+
+function fillTasks() {
+  const list = TASKS.filter(t => t.split === $("#split").value && t.difficulty === $("#diff").value);
+  $("#task").innerHTML = list.map(t => `<option value="${t.id}">${esc(t.id)} · ${esc(t.instruction)}</option>`).join("");
+  showTask();
+}
+
+function showTask() {
+  const t = TASKS.find(t => t.id === $("#task").value); if (!t) return;
+  $("#sceneImg").src = `/api/tasks/${t.id}/${view === "cinema" ? "cinema.jpg" : "image.png"}`;
+  $("#instr").textContent = t.instruction;
+  $("#taskMeta").textContent = `${DIFF[t.difficulty]} · ${t.split === "heldout" ? "held-out" : "tuning"} set · ${t.id}`;
+  $("#traps").innerHTML = t.traps.map(x => `<span class="chip" data-tip="${esc(TRAP[x] || x)}">${esc(x.replace(/_/g, " "))}</span>`).join("");
+  ["L", "R"].forEach(s => renderCol(s, null));
+}
+
+function variantSelect(side) {
+  return `<select data-side="${side}">${Object.entries(META.variants).map(([k, v]) =>
+    `<option value="${k}" ${sides[side] === k ? "selected" : ""}>${k} · ${v}</option>`).join("")}</select>`;
+}
+
+function outcome(r) {
+  const s = r.score;
+  if (s.success && s.refused) return ["good", "✓ Correctly refused"];
+  if (s.success) return ["good", "✓ Task done safely"];
+  if (s.unsafe) return ["bad", `⚠ Unsafe at step ${s.violation.step + 1}`];
+  if (s.invalid_step) return ["meh", `✕ Invalid step ${s.violation.step + 1}`];
+  if (s.invalid) return ["meh", "✕ Invalid program"];
+  if (s.refused) return r.possible ? ["meh", "✕ Refused a doable task"] : ["good", "✓ Refused"];
+  return r.possible ? ["meh", "✕ Goal not reached"] : ["bad", "✕ Acted on a task it should refuse"];
+}
+
+function stepsHtml(steps, badIdx) {
+  return `<ol class="steps">${steps.map((s, i) => {
+    const e = s.expect ? `<span class="expect"> → holding ${esc(s.expect.holding ?? "nothing")}</span>` : "";
+    return `<li class="${i === badIdx ? "bad" : ""}">${esc(s.skill)}(${esc(s.args.join(", "))})${e}</li>`;
+  }).join("")}</ol>`;
+}
+
+function parseSteps(text) {
+  try { let o = JSON.parse(text.replace(/```(json)?/g, "")); if (Array.isArray(o)) o = { steps: o }; return o.steps || null; }
+  catch { return null; }
+}
+
+function renderCol(side, r, err) {
+  const head = `<div class="col-head">${variantSelect(side)}</div>`;
+  let body;
+  if (err) body = `<div class="empty">${esc(err)}</div>`;
+  else if (r === "loading") body = `<div class="empty">Running…</div>`;
+  else if (!r) body = `<div class="empty">Press “Run both”</div>`;
+  else {
+    const [cls, label] = outcome(r);
+    const viol = r.score.violation;
+    const attempts = r.attempts.map((a, i) => {
+      const isLast = i === r.attempts.length - 1;
+      const steps = parseSteps(a.text);
+      const purpose = r.perceived === null ? "Plan" : (i === 0 ? "Plan" : `Replan ${i}`);
+      const ok = !a.errors.length;
+      return `<div class="attempt ${r.passed_check === null ? "" : ok ? "pass" : "fail"}">
+        <h4>${purpose}${a.model ? " · " + esc(a.model.split("/").pop()) : ""}${r.passed_check === null ? "" : ok ? " · check passed" : " · check failed"}</h4>
+        ${steps ? stepsHtml(steps, isLast && !r.fail_closed && viol ? viol.step : -1) : `<div class="meta">Unparseable output</div>`}
+        ${a.errors.length ? `<ul class="errs">${a.errors.map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
+      </div>`;
+    }).join("");
+    const tokens = r.calls.reduce((n, c) => n + c.prompt_tokens + c.completion_tokens, 0);
+    body = `${r.mock ? `<div class="chip" style="display:inline-block;margin-bottom:8px">mock model · not a result</div><br>` : ""}<div class="badge ${cls}">${label}</div>
+      ${viol ? `<div class="meta" style="margin-bottom:6px">${esc(viol.message)}</div>` : ""}
+      ${r.fail_closed ? `<div class="meta">No plan passed the check, so the robot refused instead of moving.</div>` : ""}
+      ${r.escalated ? `<div class="meta">Escalated from the small model to the large model.</div>` : ""}
+      <div class="stats"><span>Latency <b>${r.latency_s.toFixed(1)}s</b></span><span>Calls <b>${r.calls.length}</b></span><span>Tokens <b>${tokens.toLocaleString()}</b></span></div>
+      ${attempts}
+      ${r.after_image ? `<div class="after"><div class="meta">True scene after running the final plan</div><img src="${r.after_image}" alt="Scene after execution"></div>` : ""}`;
+  }
+  $("#col" + side).innerHTML = head + body;
+  $("#col" + side).querySelector("select").onchange = e => { sides[side] = e.target.value; renderCol(side, null); };
+}
+
+async function runSide(side) {
+  const id = $("#task").value, v = sides[side];
+  renderCol(side, "loading");
+  try {
+    let res;
+    if (source === "logged") res = await fetch(`/api/logged/${v}/${id}`);
+    else res = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task_id: id, variant: v, mock: source === "mock" }) });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    renderCol(side, await res.json());
+  } catch (e) { renderCol(side, null, e.message); }
+}
+
+async function runBoth() {
+  $("#go").disabled = true;
+  await Promise.all([runSide("L"), runSide("R")]);
+  $("#go").disabled = false;
+}
+
+function drawResults() {
+  const data = RESULTS[resSplit] || {};
+  const vs = Object.keys(data);
+  const anyMock = vs.some(v => data[v].mock);
+  $("#banner").innerHTML = Object.values(RESULTS).some(s => Object.values(s).some(x => x.mock))
+    ? `<div class="banner"><b>Mock data present.</b> Rows marked * come from the offline mock model and test the pipeline only. They are not results.</div>` : "";
+  if (!vs.length) { $("#results").innerHTML = `<div class="empty">No logged runs for this split yet.</div>`; return; }
+  const name = v => `${v} · ${META.variants[v.replace("*", "")] || ""}`;
+
+  const ticks = [0, 25, 50, 75, 100];
+  const bars = `<div class="bars">${vs.map(v => {
+    const s = data[v], [lo, hi] = s.success_ci;
+    return `<div class="row" data-tip="<b>${esc(name(v))}</b><br>Success ${pct(s.success)} (n=${s.n})<br>95% CI ${pct(lo)}–${pct(hi)}">
+      <div class="label">${esc(name(v))}</div>
+      <div class="track">${ticks.map(t => `<div class="grid" style="left:${t}%"></div>`).join("")}
+        <div class="bar" style="width:${100 * s.success}%"></div>
+        <div class="ci" style="left:${100 * lo}%;width:${100 * (hi - lo)}%"></div></div>
+      <div class="val">${pct(s.success)}</div></div>`;
+  }).join("")}
+    <div class="axis"><span></span><div class="ticks">${ticks.map(t => `<span style="left:${t}%">${t}%</span>`).join("")}</div><span></span></div></div>`;
+
+  const ramp = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95"];
+  const cellColor = x => ramp[Math.min(ramp.length - 1, Math.floor(x * ramp.length))];
+  const ink = x => Math.floor(x * ramp.length) >= 3 ? "#ffffff" : "#0b0b0b";
+  const diffs = ["easy", "multi_step", "blocked", "impossible", "packing"];
+  const heat = `<div class="table-wrap"><table class="heat"><thead><tr><th>Variant</th>${diffs.map(d => `<th style="text-align:center">${DIFF[d]}</th>`).join("")}</tr></thead><tbody>
+    ${vs.map(v => `<tr><td>${esc(name(v))}</td>${diffs.map(d => {
+      const x = data[v].by_difficulty[d];
+      return x == null ? "<td>–</td>" : `<td class="cell" style="background:${cellColor(x)};color:${ink(x)}" data-tip="${esc(name(v))} · ${DIFF[d]}: ${pct(x)} success">${pct(x)}</td>`;
+    }).join("")}</tr>`).join("")}</tbody></table></div>`;
+
+  const money = x => x == null ? "–" : "$" + x.toFixed(4);
+  const tbl = `<div class="table-wrap"><table><thead><tr><th>Variant</th><th>n</th><th>Success</th><th>95% CI</th><th data-tip="Output could not be parsed">Invalid</th><th data-tip="A sequencing slip stopped the robot">Bad step</th><th data-tip="A physical hazard: crush, closed or full container, full gripper">Unsafe</th>
+    <th data-tip="Impossible tasks that were refused">Refused ✓</th><th data-tip="Doable tasks that were refused">Refused ✗</th><th>p50 s</th><th>p95 s</th><th>Calls/task</th><th>$ / success</th></tr></thead><tbody>
+    ${vs.map(v => { const s = data[v]; return `<tr><td>${esc(name(v))}</td><td>${s.n}</td><td>${pct(s.success)}</td>
+      <td>${pct(s.success_ci[0])}–${pct(s.success_ci[1])}</td><td>${pct(s.invalid)}</td><td>${pct(s.invalid_step ?? 0)}</td><td>${pct(s.unsafe)}</td>
+      <td>${pct(s.correct_refusal)}</td><td>${pct(s.false_refusal)}</td><td>${s.p50_latency_s.toFixed(2)}</td><td>${s.p95_latency_s.toFixed(2)}</td>
+      <td>${s.calls_per_task.toFixed(2)}</td><td>${money(s.cost_per_success)}</td></tr>`; }).join("")}</tbody></table></div>`;
+
+  $("#results").innerHTML = `<div class="grid2"><div><h2 style="font-size:15px">Task success, with 95% interval</h2>${bars}</div>
+    <div><h2 style="font-size:15px">Success by difficulty</h2>${heat}</div></div>
+    <div style="margin-top:18px">${tbl}</div>
+    ${pairedHtml(name)}
+    ${diagHtml(data, name)}
+    <p class="note">Every number is computed from logged runs in runs/*.jsonl and graded in a hidden true scene that the model and the checker never see. Cost uses logged tokens × prices.json (shown as – until prices are set).${anyMock ? " * = mock model." : ""}</p>`;
+}
+
+function pairedHtml(name) {
+  const c = COMPARE[resSplit] || {};
+  const vs = Object.keys(c);
+  if (!vs.length) return "";
+  const money = x => x == null ? "–" : "$" + x.toFixed(4);
+  const p = x => x < 0.0001 ? "< 0.0001" : x.toFixed(4);
+  return `<h2 style="font-size:15px;margin-top:22px">Is the gain real? Paired against the baseline on the same tasks</h2>
+  <div class="table-wrap"><table><thead><tr><th>Variant</th><th>Tasks</th>
+    <th data-tip="Tasks the baseline failed and this variant solved">Wins</th><th data-tip="Tasks the baseline solved and this variant failed">Losses</th>
+    <th data-tip="Exact McNemar test on wins vs losses. Below 0.05 means the difference is unlikely to be chance">p-value</th>
+    <th data-tip="Baseline was unsafe here, this variant was not">Unsafe prevented</th><th data-tip="This variant was unsafe where the baseline was not">Unsafe added</th>
+    <th data-tip="Extra spend over the baseline, divided by (wins − losses)">$ per prevented failure</th>
+    <th data-tip="Extra spend divided by net unsafe actions prevented">$ per prevented unsafe action</th></tr></thead><tbody>
+    ${vs.map(v => { const s = c[v]; return `<tr><td>${esc(name(v))}</td><td>${s.n}</td><td>${s.wins}</td><td>${s.losses}</td><td>${p(s.p_value)}</td>
+      <td>${s.unsafe_prevented}</td><td>${s.unsafe_added}</td><td>${money(s.cost_per_prevented_failure)}</td><td>${money(s.cost_per_prevented_unsafe)}</td></tr>`; }).join("")}
+  </tbody></table></div>`;
+}
+
+function diagHtml(data, name) {
+  const vs = Object.keys(data).filter(v => !data[v].mock);
+  if (!vs.length) return "";
+  const x = (v) => v == null ? "–" : pct(v);
+  return `<h2 style="font-size:15px;margin-top:22px">Why: perception, imagination and the checker (scored in the true scene)</h2>
+  <div class="table-wrap"><table><thead><tr><th>Variant</th>
+    <th data-tip="Objects found in the image vs. truth (F1 by id)">Perception F1</th><th data-tip="Open/closed read correctly">Lids</th>
+    <th data-tip="Whole scene read exactly right">Scene exact</th>
+    <th data-tip="First plan: share of predicted step states that came true. A rule-breaking step counts as a miss">Prediction (1st plan)</th>
+    <th data-tip="First plans that would have failed in the true scene">1st plan would fail</th>
+    <th data-tip="Of those, how many the checker flagged">Caught</th><th data-tip="Good first plans the checker wrongly flagged">False alarms</th>
+    <th data-tip="Flagged tasks that ended in success after replanning">Recovered</th>
+    <th data-tip="Would-fail first plans the checker did not flag; refusals are never checked">Blind spots (refusals)</th>
+    <th data-tip="Plan length vs. the shortest possible plan, on successes">Steps vs. shortest</th>
+    <th data-tip="Refusals of impossible tasks whose reason names what actually makes them impossible">Refused for the right reason</th></tr></thead><tbody>
+    ${vs.map(v => { const s = data[v], c = s.checker || {}; return `<tr><td>${esc(name(v))}</td><td>${x(s.perception_f1)}</td><td>${x(s.lid_acc)}</td>
+      <td>${x(s.perception_exact)}</td><td>${x(s.prediction_acc_first)}</td><td>${c.first_plan_fails ?? "–"}</td><td>${x(c.catch_rate)}</td>
+      <td>${x(c.false_alarm_rate)}</td><td>${x(c.recovery_rate)}</td><td>${c.blind_spots ?? "–"} (${c.blind_refusals ?? "–"})</td>
+      <td>${s.efficiency == null ? "–" : s.efficiency.toFixed(2) + "×"}</td><td>${x(s.refusal_reason_ok)}</td></tr>`; }).join("")}
+  </tbody></table></div>`;
+}
+
+init();
+</script>
+</body>
+</html>

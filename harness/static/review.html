@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foresight Review</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f2; --surface: #fcfcfb; --surface-2: #f0efec; --border: #e2e0da;
+  --text: #0b0b0b; --text-2: #52514e; --muted: #7d7b75; --accent: #2a78d6; --accent-soft: #cde2fb;
+  --good: #0ca30c; --good-text: #006300; --serious: #ec835a; --critical: #d03b3b;
+  --err-bg: #fdf0ec; --ok-bg: #edf7ed; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark; --bg: #121211; --surface: #1a1a19; --surface-2: #242422; --border: #383835;
+    --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8d86; --accent: #3987e5; --accent-soft: #1c3a5e;
+    --good-text: #5fd35f; --err-bg: #3a2420; --ok-bg: #1d301d;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark; --bg: #121211; --surface: #1a1a19; --surface-2: #242422; --border: #383835;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8d86; --accent: #3987e5; --accent-soft: #1c3a5e;
+  --good-text: #5fd35f; --err-bg: #3a2420; --ok-bg: #1d301d;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 5; }
+header h1 { font-size: 18px; margin: 0 8px 0 0; }
+header a { color: var(--accent); }
+select, button, textarea { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; }
+button { cursor: pointer; }
+button.on.ok, button.on.agree { background: var(--ok-bg); border-color: var(--good); color: var(--good-text); font-weight: 600; }
+button.on.problem, button.on.disagree { background: var(--err-bg); border-color: var(--critical); font-weight: 600; }
+.progress { margin-left: auto; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.wrap { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: calc(100vh - 58px); }
+#list { border-right: 1px solid var(--border); overflow-y: auto; max-height: calc(100vh - var(--head, 58px)); position: sticky; top: var(--head, 58px); }
+.item { padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.item:hover { background: var(--surface-2); }
+.item.sel { background: var(--accent-soft); }
+.item .top { display: flex; justify-content: space-between; gap: 6px; font: 12px var(--mono); }
+.item .ins { color: var(--text-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dots { display: flex; gap: 4px; }
+.dot { font: 11px var(--mono); padding: 0 4px; border-radius: 4px; border: 1px solid var(--border); }
+.dot.success, .dot.refused_ok { color: var(--good-text); border-color: var(--good); }
+.dot.unsafe { color: var(--critical); border-color: var(--critical); font-weight: 700; }
+.dot.false_refusal, .dot.goal_missed, .dot.bad_step, .dot.invalid { color: var(--text); border-color: var(--serious); }
+.rev { font-size: 11px; color: var(--muted); }
+.rev.problem { color: var(--critical); font-weight: 600; }
+.rev.ok { color: var(--good-text); }
+main { padding: 16px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+h3 { font-size: 13px; margin: 12px 0 6px; color: var(--text-2); }
+.instr { font-size: 18px; font-weight: 600; margin: 6px 0; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font: 12px var(--mono); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; color: var(--text-2); }
+.imgs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.imgs img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; }
+.cap { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+td, th { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 12.5px; }
+th { color: var(--text-2); font-family: inherit; font-weight: 600; }
+ol.steps { margin: 0; padding-left: 24px; font: 12.5px/1.6 var(--mono); }
+ol.steps li.bad { color: var(--critical); font-weight: 700; }
+.exp { color: var(--muted); }
+.errs { margin: 6px 0; padding: 8px 10px 8px 24px; background: var(--err-bg); border-radius: 8px; font-size: 13px; }
+.ok-note { margin: 6px 0; padding: 6px 10px; background: var(--ok-bg); border-radius: 8px; font-size: 13px; }
+.badge { display: inline-block; font-weight: 600; padding: 4px 9px; border-radius: 7px; border: 1px solid; }
+.badge.success, .badge.refused_ok { color: var(--good-text); border-color: var(--good); background: var(--ok-bg); }
+.badge.unsafe { border-color: var(--critical); background: var(--err-bg); }
+.badge.false_refusal, .badge.goal_missed, .badge.bad_step, .badge.invalid { border-color: var(--serious); background: var(--err-bg); }
+.vhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vote { display: flex; gap: 6px; }
+.meta { color: var(--muted); font-size: 12.5px; }
+details { margin-top: 6px; }
+summary { cursor: pointer; color: var(--text-2); font-size: 12.5px; }
+pre { white-space: pre-wrap; word-break: break-word; font: 12px var(--mono); background: var(--surface-2); padding: 8px; border-radius: 8px; max-height: 280px; overflow: auto; }
+.verdict { position: sticky; top: calc(var(--head, 58px) + 8px); z-index: 3; border-color: var(--accent); }
+.verdict .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+textarea { width: 100%; min-height: 54px; }
+.diff b { color: var(--critical); }
+.keys { color: var(--muted); font-size: 12px; }
+.checklist { font-size: 13px; color: var(--text-2); margin: 0; padding-left: 18px; }
+@media (max-width: 900px) { .wrap, .imgs, .cols { grid-template-columns: minmax(0, 1fr); } #list { position: static; max-height: 260px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Foresight Review</h1>
+  <select id="split"><option value="tune">Tuning set</option><option value="heldout">Held-out (tasks only)</option></select>
+  <select id="tier"><option value="">All tiers</option><option>easy</option><option>multi_step</option><option>blocked</option><option>impossible</option><option>packing</option></select>
+  <select id="filter">
+    <option value="all">All tasks</option>
+    <option value="todo">Not reviewed yet</option>
+    <option value="sample">Sample: 5 per tier</option>
+    <option value="c_failed">Foresight (C) failed</option>
+    <option value="unsafe">Any variant unsafe</option>
+    <option value="disagree">Variants disagree</option>
+    <option value="cf">Foresight (C) vs check-only (F) differ</option>
+    <option value="any_failed">Any variant failed</option>
+    <option value="flagged">I flagged a problem</option>
+  </select>
+  <span class="keys">j / k next · prev &nbsp; o task OK &nbsp; p task problem</span>
+  <a href="/">Dashboard</a>
+  <span class="progress" id="progress"></span>
+</header>
+<div class="wrap">
+  <nav id="list"></nav>
+  <main id="detail"><div class="meta">Pick a task.</div></main>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const LABEL = { success: "Success", refused_ok: "Correctly refused", unsafe: "Unsafe", bad_step: "Bad step",
+  invalid: "Invalid output", false_refusal: "Refused a doable task", goal_missed: "Goal not met" };
+const SHORT = { success: "✓", refused_ok: "✓R", unsafe: "⚠", bad_step: "✕s", invalid: "✕?", false_refusal: "✕R", goal_missed: "✕g" };
+let ALL = [], VIEW = [], cur = null, DETAIL = null;
+
+async function load() {
+  ALL = await (await fetch(`/api/review/tasks?split=${$("#split").value}`)).json();
+  applyFilter();
+}
+
+function applyFilter() {
+  const tier = $("#tier").value, f = $("#filter").value;
+  let xs = ALL.filter(t => !tier || t.difficulty === tier);
+  const fail = o => o && !["success", "refused_ok"].includes(o);
+  if (f === "todo") xs = xs.filter(t => !t.verdict || !t.verdict.task);
+  if (f === "c_failed") xs = xs.filter(t => fail(t.outcomes.C));
+  if (f === "unsafe") xs = xs.filter(t => Object.values(t.outcomes).includes("unsafe"));
+  if (f === "disagree") xs = xs.filter(t => new Set(Object.values(t.outcomes).map(o => fail(o))).size > 1);
+  if (f === "cf") xs = xs.filter(t => t.outcomes.C && t.outcomes.F && fail(t.outcomes.C) !== fail(t.outcomes.F));
+  if (f === "any_failed") xs = xs.filter(t => Object.values(t.outcomes).some(fail));
+  if (f === "flagged") xs = xs.filter(t => t.verdict && (t.verdict.task === "problem" || Object.values(t.verdict.grades || {}).includes("disagree")));
+  if (f === "sample") {  // deterministic: the first 5 of each tier in id order
+    const by = {}; xs.forEach(t => (by[t.difficulty] = by[t.difficulty] || []).push(t));
+    xs = Object.values(by).flatMap(g => g.slice(0, 5));
+  }
+  VIEW = xs;
+  drawList();
+  const done = ALL.filter(t => t.verdict && t.verdict.task).length;
+  const flagged = ALL.filter(t => t.verdict && (t.verdict.task === "problem" || Object.values(t.verdict.grades || {}).includes("disagree"))).length;
+  $("#progress").textContent = `${done} / ${ALL.length} reviewed · ${flagged} flagged · showing ${VIEW.length}`;
+  if (!cur || !VIEW.find(t => t.id === cur)) VIEW[0] ? open(VIEW[0].id) : ($("#detail").innerHTML = `<div class="meta">No tasks match.</div>`);
+}
+
+function drawList() {
+  $("#list").innerHTML = VIEW.map(t => {
+    const v = t.verdict || {};
+    const flag = v.task === "problem" || Object.values(v.grades || {}).includes("disagree");
+    const rev = v.task ? `<span class="rev ${flag ? "problem" : "ok"}">${flag ? "flagged" : "reviewed"}</span>` : `<span class="rev">–</span>`;
+    return `<div class="item ${t.id === cur ? "sel" : ""}" data-id="${t.id}">
+      <div class="top"><span>${esc(t.id)}</span><span class="dots">${Object.entries(t.outcomes).map(([k, o]) =>
+        `<span class="dot ${o}" title="${k}: ${LABEL[o]}">${k}${SHORT[o]}</span>`).join("")}</span>${rev}</div>
+      <div class="ins">${esc(t.instruction)}</div></div>`;
+  }).join("");
+  $("#list").querySelectorAll(".item").forEach(el => el.onclick = () => open(el.dataset.id));
+}
+
+function stepsHtml(steps, bad) {
+  return `<ol class="steps">${steps.map((s, i) => {
+    const e = s.expect ? `<span class="exp"> → holding ${esc(s.expect.holding ?? "nothing")}${Object.keys(s.expect.locations || {}).length ?
+      "; " + Object.entries(s.expect.locations).map(([o, l]) => `${o}@${l}`).join(", ") : ""}${Object.keys(s.expect.open || {}).length ?
+      "; " + Object.entries(s.expect.open).map(([c, o]) => `${c} ${o ? "open" : "closed"}`).join(", ") : ""}</span>` : "";
+    return `<li class="${i === bad ? "bad" : ""}">${esc(s.skill)}(${esc((s.args || []).join(", "))})${e}</li>`;
+  }).join("")}</ol>`;
+}
+
+function parse(text) {
+  try { let o = JSON.parse(String(text).replace(/```(json)?/g, "")); if (Array.isArray(o)) o = { steps: o }; return o; } catch { return null; }
+}
+
+function perceptionDiff(task, perceived) {
+  if (!perceived) return "";
+  const closed = new Set(task.scene.containers.filter(c => !c.is_open).map(c => c.id));
+  const truth = Object.fromEntries(task.scene.objects.filter(o => !closed.has(o.location)).map(o => [o.id, o.location]));
+  const seen = Object.fromEntries((perceived.objects || []).map(o => [o.id, o.location]));
+  const missed = Object.keys(truth).filter(k => !(k in seen));
+  const invented = Object.keys(seen).filter(k => !(k in truth));
+  const moved = Object.keys(truth).filter(k => k in seen && seen[k] !== truth[k]);
+  const lids = task.scene.containers.filter(c => { const p = (perceived.containers || []).find(x => x.id === c.id); return !p || p.is_open !== c.is_open; });
+  if (!missed.length && !invented.length && !moved.length && !lids.length) return `<div class="ok-note">Perception matched the true scene exactly.</div>`;
+  return `<div class="errs diff">Perception differs from truth:
+    ${missed.length ? `<div>missed: <b>${missed.map(esc).join(", ")}</b></div>` : ""}
+    ${invented.length ? `<div>invented: <b>${invented.map(esc).join(", ")}</b></div>` : ""}
+    ${moved.length ? `<div>wrong place: <b>${moved.map(k => `${esc(k)} seen at ${esc(seen[k])}, really ${esc(truth[k])}`).join("; ")}</b></div>` : ""}
+    ${lids.length ? `<div>lid wrong or missing: <b>${lids.map(c => esc(c.id)).join(", ")}</b></div>` : ""}</div>`;
+}
+
+async function open(id) {
+  cur = id;
+  drawList();
+  const el = $("#list").querySelector(".sel"); if (el) el.scrollIntoView({ block: "nearest" });
+  DETAIL = await (await fetch(`/api/review/task/${id}`)).json();
+  const { task: t, oracle, runs } = DETAIL;
+  const v = DETAIL.verdict || { task: null, grades: {}, note: "" };
+  const sceneRows = t.scene.objects.map(o => `<tr><td>${esc(o.id)}</td><td>${esc(o.location)}</td></tr>`).join("");
+  const conts = t.scene.containers.map(c => `${esc(c.id)} (${c.kind}, ${c.is_open ? "open" : "closed"})`).join(" · ");
+  const goals = t.possible ? t.goals.map(g => `${esc(g.obj)} → ${esc(g.location)}`).join("<br>") : `<i>Impossible: correct answer is refuse.</i><br>Asked for: ${t.requested.map(g => `${esc(g.obj)} → ${esc(g.location)}`).join(", ")}`;
+
+  const runCards = Object.entries(runs).map(([k, r]) => {
+    const viol = r.score.violation;
+    const attempts = r.attempts.map((a, i) => {
+      const p = parse(a.text);
+      const last = i === r.attempts.length - 1;
+      return `<h3>${r.perceived === null ? "Plan" : i === 0 ? "Plan" : "Replan " + i}${r.passed_check === null ? "" : a.errors.length ? " · check failed" : " · check passed"}</h3>
+        ${p && p.steps ? stepsHtml(p.steps, last && viol && !r.fail_closed ? viol.step : -1) : `<div class="meta">Could not parse this output.</div>`}
+        ${p && p.goal ? `<div class="meta">declared goal: ${p.goal.map(g => `${esc(g.obj)}→${esc(g.location)}`).join(", ") || "none"}${p.sealed && p.sealed.length ? " · sealed: " + p.sealed.map(esc).join(", ") : ""}</div>` : ""}
+        ${a.errors.length ? `<ul class="errs">${a.errors.map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
+        <details><summary>Raw model output</summary><pre>${esc(a.text)}</pre></details>`;
+    }).join("");
+    const g = (v.grades || {})[k];
+    return `<div class="card">
+      <div class="vhead"><div><b>${esc(k)}</b> &nbsp;<span class="badge ${r.outcome}">${LABEL[r.outcome]}</span>
+        ${r.fail_closed ? `<span class="meta">· refused because no plan passed the check</span>` : ""}</div>
+        <div class="vote">Grade correct?
+          <button class="agree ${g === "agree" ? "on" : ""}" data-v="${k}" data-g="agree">Agree</button>
+          <button class="disagree ${g === "disagree" ? "on" : ""}" data-v="${k}" data-g="disagree">Disagree</button></div></div>
+      ${viol ? `<div class="errs">Step ${viol.step + 1} broke a rule in the TRUE scene (${esc(viol.code)}): ${esc(viol.message)}</div>` : ""}
+      <div class="meta">latency ${r.latency_s.toFixed(1)}s · ${r.calls.length} call(s) · run manifest ${esc(r.manifest || "none (older run)")}</div>
+      ${(r.perception_issues || []).length ? `<div class="meta">Perception was retried once; first output had: ${r.perception_issues.map(esc).join("; ")}</div>` : ""}
+      ${perceptionDiff(t, r.perceived)}
+      ${attempts}
+      ${r.final_plan ? `<details data-after="${k}"><summary>True scene after the final plan</summary><div class="after"></div></details>` : ""}
+    </div>`;
+  }).join("") || `<div class="card meta">No logged runs for this task${t.split === "heldout" ? " (held-out tasks are only run once, at the end)" : ""}.</div>`;
+
+  $("#detail").innerHTML = `
+  <div class="card verdict">
+    <div class="row"><b>${esc(t.id)}</b>
+      <span>Task correct?</span>
+      <button class="ok ${v.task === "ok" ? "on" : ""}" data-t="ok">OK</button>
+      <button class="problem ${v.task === "problem" ? "on" : ""}" data-t="problem">Problem</button>
+      <span class="meta" id="saved">${DETAIL.verdict ? "saved " + esc(DETAIL.verdict.updated) : "not reviewed"}</span></div>
+    <textarea id="note" placeholder="Notes: what is wrong with the task or a grade (saved when you leave the box)">${esc(v.note || "")}</textarea>
+  </div>
+  <div class="card">
+    <div class="chips"><span class="chip">${esc(t.difficulty)}</span>${t.traps.map(x => `<span class="chip">${esc(x.replace(/_/g, " "))}</span>`).join("")}
+      <span class="chip">${t.possible ? "doable" : "impossible"}</span><span class="chip">${esc(t.split)}</span></div>
+    <div class="instr">${esc(t.instruction)}</div>
+    <div class="imgs">
+      <div><img src="/api/tasks/${t.id}/image.png" alt="Robot camera"><div class="cap">Robot camera: what the model sees</div></div>
+      <div><img src="/api/tasks/${t.id}/cinema.jpg" alt="3/4 view" onerror="this.parentElement.style.display='none'"><div class="cap">3/4 view: for people only</div></div>
+    </div>
+  </div>
+  <div class="card cols">
+    <div><h2>Ground truth</h2><div class="meta">${conts}</div>
+      <table><thead><tr><th>object</th><th>location</th></tr></thead><tbody>${sceneRows}</tbody></table>
+      <h3>Goal</h3><div style="font:12.5px var(--mono)">${goals}</div>
+      ${t.sealed.length ? `<h3>Must end sealed, with exactly their goal items</h3><div style="font:12.5px var(--mono)">${t.sealed.map(esc).join(", ")}</div>` : ""}</div>
+    <div><h2>Oracle: shortest correct plan (A*)</h2><ol class="steps">${oracle.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+      <h3>What to check</h3>
+      <ul class="checklist">
+        <li>The instruction matches the image, and the named items and containers are where the truth table says.</li>
+        <li>"Doable" or "impossible" is right, and the traps describe what makes it hard.</li>
+        <li>The oracle plan is valid and nothing shorter exists.</li>
+        <li>Each variant's grade matches what its plan actually does. Is a rule break real? Is a refusal fair?</li>
+      </ul></div>
+  </div>
+  ${runCards}`;
+
+  $("#detail").querySelectorAll("[data-t]").forEach(b => b.onclick = () => save({ task: b.dataset.t }));
+  $("#detail").querySelectorAll("[data-g]").forEach(b => b.onclick = () => {
+    const grades = { ...((DETAIL.verdict || {}).grades || {}) };
+    grades[b.dataset.v] = grades[b.dataset.v] === b.dataset.g ? undefined : b.dataset.g;
+    save({ grades });
+  });
+  $("#note").onchange = () => save({ note: $("#note").value });
+  $("#detail").querySelectorAll("details[data-after]").forEach(d => d.addEventListener("toggle", () => {
+    const box = d.querySelector(".after");
+    if (d.open && !box.innerHTML) box.innerHTML = `<img style="width:100%;border-radius:8px;margin-top:6px" src="/api/review/after/${d.dataset.after}/${t.id}" alt="True scene after the final plan">`;
+  }));
+}
+
+async function save(patch) {
+  const prev = DETAIL.verdict || { task: null, grades: {}, note: "" };
+  const body = { task: prev.task, grades: prev.grades || {}, note: $("#note") ? $("#note").value : prev.note, ...patch };
+  Object.keys(body.grades).forEach(k => body.grades[k] === undefined && delete body.grades[k]);
+  const res = await fetch(`/api/review/verdict/${cur}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  DETAIL.verdict = await res.json();
+  const item = ALL.find(t => t.id === cur); if (item) item.verdict = DETAIL.verdict;
+  const id = cur; cur = null; applyFilter(); cur = id; await open(id);
+}
+
+function move(d) {
+  const i = VIEW.findIndex(t => t.id === cur);
+  const next = VIEW[Math.min(VIEW.length - 1, Math.max(0, i + d))];
+  if (next) open(next.id);
+}
+
+document.addEventListener("keydown", e => {
+  if (["TEXTAREA", "INPUT", "SELECT"].includes(document.activeElement.tagName)) return;
+  if (e.key === "j") move(1);
+  if (e.key === "k") move(-1);
+  if (e.key === "o" && cur) save({ task: "ok" });
+  if (e.key === "p" && cur) save({ task: "problem" });
+});
+$("#split").onchange = () => { cur = null; load(); };
+$("#tier").onchange = $("#filter").onchange = applyFilter;
+const setHead = () => document.documentElement.style.setProperty("--head", $("header").offsetHeight + "px");
+setHead(); addEventListener("resize", setHead);
+load();
+</script>
+</body>
+</html>
