@@ -1,0 +1,25 @@
+{"eval": {"n": 40, "successes": 3, "success_rate": 0.075, "unsafe": 0, "crushed": 0, "wasteful": 0, "withheld": 35, "errors": 0, "outcomes": {"no_plan": 37, "packed": 3}, "p50_latency_s": 18.226895167001203, "tokens_in": 78997, "tokens_out": 76952, "carton_cost_usd": 1.8, "by_tier": {"easy": {"n": 10, "successes": 3}, "hard": {"n": 10, "successes": 0}, "mixed": {"n": 10, "successes": 0}, "short": {"n": 10, "successes": 0}}, "step": 0, "perception_right": 22, "snapshot": "kaushik-siva88-bfszv/run-1f085c7c356f476abbdcae7c6f29a6f9/s0000-33b249b4", "spend_usd": 1.061, "eval_minutes": 4.4}}
+{"step": 1, "loss": 0.9859383831647981, "spend_usd": 1.16289635}
+{"step": 2, "loss": 0.15518202976873743, "spend_usd": 1.23105598}
+{"step": 3, "loss": 0.07950998030924822, "spend_usd": 1.31554654}
+{"step": 4, "loss": 0.016840901692708334, "spend_usd": 1.3988991800000001}
+{"step": 5, "loss": 0.016368146028201056, "spend_usd": 1.4786602600000003}
+{"step": 6, "loss": 0.01585510038327218, "spend_usd": 1.5813753200000003}
+{"step": 7, "loss": 0.025439297111289016, "spend_usd": 1.6783296600000002}
+{"step": 8, "loss": 0.01252798171831983, "spend_usd": 1.7606955100000004}
+{"step": 9, "loss": 0.020471433511505516, "spend_usd": 1.8491598999999999}
+{"step": 10, "loss": 0.010387619627911382, "spend_usd": 1.9225290700000004}
+{"step": 11, "loss": 0.009739557318731187, "spend_usd": 1.9950092400000001}
+{"step": 12, "loss": 0.006473432673086034, "spend_usd": 2.08209568}
+{"step": 13, "loss": 0.007583026287267027, "spend_usd": 2.16415927}
+{"step": 14, "loss": 0.010179868852249299, "spend_usd": 2.26166479}
+{"step": 15, "loss": 0.006352142925703093, "spend_usd": 2.3486801100000005}
+{"step": 16, "loss": 0.003533478123295006, "spend_usd": 2.45057729}
+{"step": 17, "loss": 0.0007441472807688693, "spend_usd": 2.5555237400000004}
+{"step": 18, "loss": 0.002366268671251583, "spend_usd": 2.6400409700000003}
+{"step": 19, "loss": 0.0033655218739327185, "spend_usd": 2.74056909}
+{"step": 20, "loss": 0.005521676431897765, "spend_usd": 2.83262504}
+{"step": 21, "loss": 0.005114549502135544, "spend_usd": 2.92648566}
+{"step": 22, "loss": 0.004485056836317485, "spend_usd": 3.0160257400000003}
+{"step": 23, "loss": 0.023491602608488555, "spend_usd": 3.1018053500000002}
+{"step": 24, "loss": 0.008133938971986162, "spend_usd": 3.17964619}
