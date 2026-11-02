@@ -87,9 +87,7 @@ def _static_scene():
         for label, dx, dy, sx, sy in (("xp", tx / 2, 0, t, ty / 2), ("xn", -tx / 2, 0, t, ty / 2), ("yp", 0, ty / 2, tx / 2, t), ("yn", 0, -ty / 2, tx / 2, t)):
             parts.append(_box(f"{name}_{label}", (x + dx, y + dy, wall / 2), (sx, sy, wall / 2), "tote"))
         # Tag on the bench beside the tote, facing the overhead camera.
-        parts.append(f'<geom type="mesh" mesh="unit_box" material="tag_{name}" contype="0" conaffinity="0" '
-                     f'pos="{x:.3f} {y + ty / 2 + 0.003:.3f} 0.0015" size="1 1 1" />' if False else "")
-        parts.append(f'<body pos="{x:.3f} {y:.3f} 0.0"><geom type="plane" size="0.028 0.028 0.01" pos="-0.062 0 0.0065" '
+        parts.append(f'<body pos="{x:.3f} {y:.3f} 0.0"><geom type="plane" size="0.028 0.028 0.01" pos="-0.062 0 0.0065" quat="0.7071 0 0 -0.7071" '
                      f'material="tag_{name}" contype="0" conaffinity="0"/></body>')
 
     for name, carton in CARTONS.items():
@@ -102,12 +100,12 @@ def _static_scene():
             parts.append(_box(f"carton{name}_{label}", (cx + dx, cy + dy, h / 2), (sx, sy, h / 2), "carton"))
         # Open flaps, angled outward. Visual only.
         c, s = 0.924, 0.383
-        flap = 0.05
+        flap = 0.032
         parts.append(_box(f"carton{name}_fxp", (cx + ix / 2 + t + flap * 0.92, cy, h + flap * 0.38), (flap, iy / 2 + t, 0.002), "carton", collide=False, quat=f"{c} 0 {s} 0"))
         parts.append(_box(f"carton{name}_fxn", (cx - ix / 2 - t - flap * 0.92, cy, h + flap * 0.38), (flap, iy / 2 + t, 0.002), "carton", collide=False, quat=f"{c} 0 {-s} 0"))
         parts.append(_box(f"carton{name}_fyp", (cx, cy + iy / 2 + t + flap * 0.92, h + flap * 0.38), (ix / 2 + t, flap, 0.002), "carton", collide=False, quat=f"{c} {-s} 0 0"))
         parts.append(_box(f"carton{name}_fyn", (cx, cy - iy / 2 - t - flap * 0.92, h + flap * 0.38), (ix / 2 + t, flap, 0.002), "carton", collide=False, quat=f"{c} {s} 0 0"))
-        parts.append(f'<geom type="plane" size="0.03 0.03 0.01" pos="{cx - ix / 2 - 0.045:.3f} {cy:.3f} 0.001" material="tag_{name}" contype="0" conaffinity="0"/>')
+        parts.append(f'<geom type="plane" size="0.03 0.03 0.01" pos="{cx:.3f} {cy - iy / 2 - 0.07:.3f} 0.001" quat="0.7071 0 0 -0.7071" material="tag_{name}" contype="0" conaffinity="0"/>')
 
     parts.append(f'<geom name="floor" type="plane" pos="0 0 {FLOOR_Z}" size="30 30 0.1" material="floor" contype="1" conaffinity="1"/>')
     parts.append(_rack("rackA", 2.4, -1.5, seed=1))
@@ -127,8 +125,8 @@ def _assets():
     gen = str(GEN)
     parts = [
         '<texture name="sky" type="skybox" builtin="gradient" rgb1="0.82 0.84 0.86" rgb2="0.46 0.47 0.5" width="256" height="256"/>',
-        f'<texture name="t_floor" type="2d" file="{gen}/concrete.png"/><material name="floor" texture="t_floor" texrepeat="6 6" texuniform="true" specular="0.18" shininess="0.35" reflectance="0.07"/>',
-        f'<texture name="t_bench" type="cube" file="{gen}/bench.png"/><material name="bench" texture="t_bench" specular="0.3" shininess="0.3" reflectance="0.02"/>',
+        f'<texture name="t_floor" type="2d" file="{gen}/concrete.png"/><material name="floor" texture="t_floor" texrepeat="0.35 0.35" texuniform="true" specular="0.18" shininess="0.35" reflectance="0.07"/>',
+        f'<texture name="t_bench" type="cube" file="{gen}/bench.png"/><material name="bench" texture="t_bench" specular="0.2" shininess="0.25" reflectance="0.01"/>',
         f'<texture name="t_pallet" type="cube" file="{gen}/pallet.png"/><material name="pallet" texture="t_pallet" specular="0.05" shininess="0.1"/>',
         f'<texture name="t_carton" type="cube" file="{gen}/carton_plain.png"/><material name="carton" texture="t_carton" specular="0.08" shininess="0.15"/>',
         '<material name="steel_blue" rgba="0.08 0.2 0.5 1" specular="0.6" shininess="0.5" reflectance="0.05"/>',
@@ -149,7 +147,8 @@ def _assets():
 
 def _unit(unit_id, sku_name, x, y, rng):
     sku = CATALOG[sku_name]
-    yaw = rng.uniform(-0.12, 0.12)
+    # Boxes lie with their short side across the tote, so three fit and the fingers can span them.
+    yaw = rng.uniform(-0.04, 0.04) + (np.pi / 2 if sku.shape == "box" else 0.0)
     quat = f"{np.cos(yaw / 2):.5f} 0 0 {np.sin(yaw / 2):.5f}"
     if sku.shape == "lathe":
         r, h = sku.size
@@ -173,7 +172,7 @@ def build_xml(totes, seed=0):
             continue
         x, y = TOTES[tote]
         for i in range(content["count"]):
-            units.append(_unit(f"{tote}_{i}", content["sku"], x + 0.015, y + UNIT_OFFSETS_Y[i], rng))
+            units.append(_unit(f"{tote}_{i}", content["sku"], x + 0.022, y + UNIT_OFFSETS_Y[i], rng))
     return f"""<mujoco model="packing_station">
 <compiler angle="radian" autolimits="true" meshdir="assets" texturedir="assets"/>
 <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10"/>

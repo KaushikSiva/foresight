@@ -38,17 +38,17 @@ CATALOG = {s.name: s for s in [
 # Totes sit to the robot's right, cartons to its left. The robot base is the origin; the bench top is z=0.
 TOTE_SIZE = (0.18, 0.28, 0.035)  # outer x, y, wall height
 TOTES = {
-    "T1": (0.22, -0.18), "T2": (0.42, -0.18), "T3": (0.60, -0.18),
-    "T4": (0.22, -0.47), "T5": (0.42, -0.47), "T6": (0.60, -0.47),
+    "T1": (0.20, -0.16), "T2": (0.385, -0.16), "T3": (0.57, -0.16),
+    "T4": (0.20, -0.45), "T5": (0.385, -0.45), "T6": (0.57, -0.45),
 }
 UNIT_OFFSETS_Y = [-0.085, 0.085, 0.0]
 
 CARTON_HEIGHT = 0.13
 CARTONS = {
     # Inner x, y sizes and slot centers relative to the carton center.
-    "S": {"center": (0.22, 0.42), "inner": (0.17, 0.34), "max_kg": 5.0, "cost_usd": 0.60,
+    "S": {"center": (0.17, 0.42), "inner": (0.17, 0.34), "max_kg": 5.0, "cost_usd": 0.60,
           "slots": {"A": (0.0, -0.085), "B": (0.0, 0.085)}},
-    "L": {"center": (0.50, 0.26), "inner": (0.34, 0.34), "max_kg": 12.0, "cost_usd": 1.45,
+    "L": {"center": (0.50, 0.27), "inner": (0.34, 0.34), "max_kg": 12.0, "cost_usd": 1.45,
           "slots": {"A": (-0.085, -0.085), "B": (0.085, -0.085), "C": (-0.085, 0.085), "D": (0.085, 0.085)}},
 }
 MAX_LAYERS = 2
