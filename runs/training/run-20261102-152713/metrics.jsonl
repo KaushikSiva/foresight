@@ -16,3 +16,16 @@
 {"step": 15, "loss": 0.00844468377997773, "spend_usd": 2.24903382}
 {"step": 16, "loss": 0.005316922781548918, "spend_usd": 2.350931}
 {"step": 17, "loss": 0.0014090398365483622, "spend_usd": 2.45587745}
+{"step": 18, "loss": 0.0044096937967002935, "spend_usd": 2.5403946800000003}
+{"step": 19, "loss": 0.007511881010128501, "spend_usd": 2.6409228}
+{"step": 20, "loss": 0.0038952379697520874, "spend_usd": 2.73297875}
+{"step": 21, "loss": 0.0044542808493669836, "spend_usd": 2.82683937}
+{"step": 22, "loss": 0.010648074317071224, "spend_usd": 2.91637945}
+{"step": 23, "loss": 0.020125803974388682, "spend_usd": 3.0021590600000003}
+{"step": 24, "loss": 0.0008051547598331533, "spend_usd": 3.0799999000000002}
+{"step": 25, "loss": 0.0032510049224263654, "spend_usd": 3.1671396800000005}
+{"eval": {"n": 40, "successes": 32, "success_rate": 0.8, "unsafe": 0, "crushed": 0, "wasteful": 0, "withheld": 7, "errors": 0, "outcomes": {"packed": 22, "no_plan": 7, "wrong_hold": 1, "correct_hold": 10}, "p50_latency_s": 2.8556618749989866, "tokens_in": 49302, "tokens_out": 14258, "carton_cost_usd": 23.4, "by_tier": {"easy": {"n": 10, "successes": 10}, "hard": {"n": 10, "successes": 6}, "mixed": {"n": 10, "successes": 6}, "short": {"n": 10, "successes": 10}}, "step": 25, "perception_right": 39, "snapshot": "kaushik-siva88-bfszv/run-de715bbb4c1747e18ff81582e39da4dd/s0025-a83414f5", "spend_usd": 3.622, "eval_minutes": 2.8}}
+{"step": 26, "loss": 0.000895637997313042, "spend_usd": 3.7275105200000005}
+{"step": 27, "loss": 0.006352504662105015, "spend_usd": 3.797137}
+{"step": 28, "loss": 0.0035468773115207956, "spend_usd": 3.869768300000001}
+{"step": 29, "loss": 0.002096983868142833, "spend_usd": 3.95132516}
