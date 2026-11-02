@@ -76,3 +76,20 @@ EVAL {"step": 50, "successes": 35, "n": 40, "perception_right": 38, "unsafe": 0,
 {"step": 57, "loss": 0.0045, "spend_usd": 6.958, "t": "14:12:39"}
 {"step": 58, "loss": 0.0009, "spend_usd": 7.056, "t": "14:12:52"}
 {"step": 59, "loss": 0.0049, "spend_usd": 7.152, "t": "14:13:05"}
+{"step": 60, "loss": 0.0028, "spend_usd": 7.236, "t": "14:13:26"}
+{"step": 61, "loss": 0.0017, "spend_usd": 7.323, "t": "14:13:39"}
+{"step": 62, "loss": 0.0, "spend_usd": 7.423, "t": "14:13:53"}
+{"step": 63, "loss": 0.0016, "spend_usd": 7.5, "t": "14:14:07"}
+{"step": 64, "loss": 0.0036, "spend_usd": 7.59, "t": "14:14:28"}
+{"step": 65, "loss": 0.0034, "spend_usd": 7.678, "t": "14:14:47"}
+{"step": 66, "loss": 0.003, "spend_usd": 7.763, "t": "14:14:54"}
+{"step": 67, "loss": 0.005, "spend_usd": 7.84, "t": "14:15:15"}
+{"step": 68, "loss": 0.0033, "spend_usd": 7.907, "t": "14:15:44"}
+{"step": 69, "loss": 0.0007, "spend_usd": 7.998, "t": "14:15:57"}
+{"step": 70, "loss": 0.004, "spend_usd": 8.085, "t": "14:16:10"}
+{"step": 71, "loss": 0.0, "spend_usd": 8.176, "t": "14:16:24"}
+{"step": 72, "loss": 0.0018, "spend_usd": 8.267, "t": "14:16:37"}
+{"step": 73, "loss": 0.0111, "spend_usd": 8.366, "t": "14:16:51"}
+{"step": 74, "loss": 0.0005, "spend_usd": 8.457, "t": "14:17:12"}
+{"step": 75, "loss": 0.011, "spend_usd": 8.548, "t": "14:17:25"}
+prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead

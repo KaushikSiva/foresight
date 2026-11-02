@@ -31,6 +31,8 @@ class FireworksClient:
         body = {"model": model, "messages": messages, "temperature": 0, "max_tokens": max_tokens}
         if json_mode:
             body["response_format"] = {"type": "json_object"}
+        if os.environ.get("FORESIGHT_REASONING_EFFORT"):
+            body["reasoning_effort"] = os.environ["FORESIGHT_REASONING_EFFORT"]
         request = urllib.request.Request(
             f"{BASE_URL}/chat/completions", data=json.dumps(body).encode(),
             headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
