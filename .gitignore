@@ -5,3 +5,4 @@ __pycache__/
 warehouse/assets/panda/scene_*.xml
 wandb/
 recordings/raw/
+recordings/
