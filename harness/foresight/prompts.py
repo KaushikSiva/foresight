@@ -1,0 +1,134 @@
+"""Prompts and JSON schemas. The fine-tuning export uses these same builders, so
+the fine-tuned model sees exactly the prompts it is evaluated with."""
+import base64
+import json
+from typing import List
+
+from .scenes import COLORS, KINDS, generate
+from .schema import SKILLS, Plan, Scene, Task, step_dict
+from .solver import solve
+
+RULES = f"""You control a one-armed robot over a tabletop, seen from directly above.
+Places: "table", plus containers. A container's id is its printed label in lower case with spaces as underscores ("CARTON A" is "carton_a").
+  tray: holds 1, no lid. bin: holds 3. box: holds 2. tote (warehouse stock): holds 4, no lid. carton (shipping): holds 3.
+  Bins, boxes and cartons can be closed: a grey striped lid marked CLOSED. You cannot see inside a closed container.
+Objects have ids "<color>_<kind>". Colors: {", ".join(COLORS)}. Kinds: block (square), ball (shaded circle), cup (ring with a small handle).
+Skills. Each step is {{"skill": name, "args": [...]}}:
+  move_to(x)          x is an object id, "table", or a container id
+  pick(obj)           you must be at obj and the gripper must be empty
+  place(obj, target)  you must be holding obj and be at target
+  open(c), close(c)   you must be at c and the gripper must be empty
+  refuse(reason)      when the task refers to something that is not there, or cannot be done safely
+Rules: the gripper holds one object at a time. Nothing goes into or out of a closed container. A full container takes nothing more. Cups are fragile: putting anything that is not a cup into a carton that already holds a cup crushes it, so pack sturdy items first. A packed order must hold exactly its items and its carton must be sealed (closed) at the end. If any ordered item is out of stock, refuse the whole order. The first broken rule stops the robot."""
+
+_STEP = {"type": "object", "properties": {"skill": {"type": "string", "enum": list(SKILLS)},
+                                          "args": {"type": "array", "items": {"type": "string"}}},
+         "required": ["skill", "args"]}
+PLAN_SCHEMA = {"type": "object", "properties": {"steps": {"type": "array", "items": _STEP}}, "required": ["steps"]}
+
+_EXPECT = {"type": "object", "properties": {
+    "holding": {"type": ["string", "null"]},
+    "locations": {"type": "object", "additionalProperties": {"type": "string"}},
+    "open": {"type": "object", "additionalProperties": {"type": "boolean"}}}, "required": ["holding"]}
+FORESIGHT_SCHEMA = {"type": "object", "properties": {
+    "goal": {"type": "array", "items": {"type": "object", "properties": {"obj": {"type": "string"}, "location": {"type": "string"}},
+                                          "required": ["obj", "location"]}},
+    "sealed": {"type": "array", "items": {"type": "string"}},
+    "steps": {"type": "array", "items": {**_STEP, "properties": {**_STEP["properties"], "expect": _EXPECT}}}},
+    "required": ["goal", "steps"]}
+
+SCENE_SCHEMA = {"type": "object", "properties": {
+    "objects": {"type": "array", "items": {"type": "object", "properties": {
+        "id": {"type": "string"}, "color": {"type": "string", "enum": COLORS}, "kind": {"type": "string", "enum": KINDS},
+        "location": {"type": "string"}}, "required": ["id", "color", "kind", "location"]}},
+    "containers": {"type": "array", "items": {"type": "object", "properties": {
+        "id": {"type": "string"}, "kind": {"type": "string", "enum": ["tray", "bin", "box", "tote", "carton"]},
+        "is_open": {"type": "boolean"}},
+        "required": ["id", "kind", "is_open"]}}},
+    "required": ["objects", "containers"]}
+
+
+def image_part(png: bytes) -> dict:
+    return {"type": "image_url", "image_url": {"url": "data:image/png;base64," + base64.b64encode(png).decode()}}
+
+
+def scene_json(scene: Scene) -> str:
+    return json.dumps({"objects": [o.model_dump() for o in scene.objects],
+                       "containers": [c.model_dump() for c in scene.containers]}, separators=(",", ":"))
+
+
+def plan_json(plan: Plan, with_expect: bool, goal=None, sealed=()) -> str:
+    steps = [step_dict(s) if with_expect else {"skill": s.skill, "args": s.args} for s in plan.steps]
+    out = ({"goal": [g.model_dump() for g in goal or []], "sealed": list(sealed), "steps": steps}
+           if with_expect else {"steps": steps})
+    return json.dumps(out, separators=(",", ":"))
+
+
+# Few-shot examples come from a separate seed, so they never overlap the eval set.
+def _examples() -> List[Task]:
+    pool = generate(n_per_difficulty=8, heldout_per_difficulty=(0, 0, 0, 0, 0), seed=12345)
+    blocked = next((t for t in pool if t.difficulty == "blocked" and len(t.goals) == 2),
+                   next(t for t in pool if t.difficulty == "blocked"))
+    missing = next(t for t in pool if t.difficulty == "impossible")
+    packing = next((t for t in pool if t.difficulty == "packing" and t.possible and
+                    any(t.scene.obj(g.obj).kind == "cup" for g in t.goals) and len(t.goals) > 1),
+                   next(t for t in pool if t.difficulty == "packing" and t.possible))
+    return [blocked, packing, missing]
+
+
+EXAMPLES = _examples()
+
+
+def _shots(with_expect: bool) -> str:
+    parts = []
+    for t in EXAMPLES:
+        parts.append(f"Scene: {scene_json(t.scene)}\nTask: {t.instruction}\nOutput: "
+                     + plan_json(solve(t), with_expect, t.goals, t.sealed))
+    return "\n\n".join(parts)
+
+
+# --- Variant A: plain prompt, image in, free-form plan out -------------------------------
+def direct_plain(png: bytes, instruction: str) -> list:
+    return [{"role": "user", "content": [image_part(png), {"type": "text", "text":
+            f"{RULES}\n\nTask: {instruction}\n\nReply with a JSON object {{\"steps\": [...]}} listing the steps."}]}]
+
+
+# --- Variant B: structured output + few-shot ------------------------------------------------
+def direct_constrained(png: bytes, instruction: str) -> list:
+    return [
+        {"role": "system", "content": RULES + "\n\nExamples (scenes written as JSON for brevity):\n\n" + _shots(False)},
+        {"role": "user", "content": [image_part(png), {"type": "text", "text":
+            f"Task: {instruction}\nOutput only the JSON plan."}]},
+    ]
+
+
+# --- Variant C: perceive, then imagine + plan ------------------------------------------------
+def perceive(png: bytes) -> list:
+    return [
+        {"role": "system", "content": RULES},
+        {"role": "user", "content": [image_part(png), {"type": "text", "text":
+            "List everything in the image as JSON. For each visible object give id, color, kind and location "
+            "(\"table\" or the container it sits in). For each container give id (its label in lower case), kind and is_open. "
+            "Do not guess the contents of closed containers. Output only JSON."}]},
+    ]
+
+
+PLAN_INSTRUCTIONS = (
+    "Write the plan as JSON. First state the goal as a list of {obj, location}, and in \"sealed\" list any "
+    "cartons that must end closed. Then, for every step, "
+    "imagine the world after it and write that in \"expect\": holding (the object in the gripper, or null), "
+    "locations (objects that moved and where they are now) and open (containers whose lid changed). "
+    "If the task names something that is not in the scene, the plan is a single refuse step with an empty goal."
+)
+
+
+def plan_from_scene(scene: Scene, instruction: str) -> list:
+    return [
+        {"role": "system", "content": RULES + "\n\n" + PLAN_INSTRUCTIONS + "\n\nExamples:\n\n" + _shots(True)},
+        {"role": "user", "content": f"Scene: {scene_json(scene)}\nTask: {instruction}\nOutput:"},
+    ]
+
+
+def replan(errors: List[str]) -> dict:
+    return {"role": "user", "content": "A checker ran your plan in a simulator of the scene above and found:\n- "
+            + "\n- ".join(errors) + "\nWrite the full corrected plan. Output only JSON."}
