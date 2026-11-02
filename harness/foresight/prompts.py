@@ -6,8 +6,20 @@ from typing import List
 
 from . import config
 from .scenes import COLORS, KINDS, generate
-from .schema import SKILLS, Plan, Scene, Task, step_dict
+from .schema import CAPACITY, SKILLS, Plan, Scene, Task, step_dict
 from .solver import solve
+
+
+def refusal_reason(t: Task) -> str:
+    """A specific reason for an impossible task, so examples and fine-tune targets never teach a vague refusal."""
+    for g in t.requested:
+        if t.scene.obj(g.obj) is None:
+            return f"{g.obj} is not on the bench"
+        if g.location != "table" and t.scene.container(g.location) is None:
+            return f"there is no {g.location} here"
+    loc = t.requested[0].location
+    c = t.scene.container(loc)
+    return f"the {loc} holds only {CAPACITY[c.kind]} items" if c else "the task cannot be done under the rules"
 
 LOOK = {
     "3d": ("Kinds: block (cube), ball (sphere), cup (mug with a handle).",
@@ -24,11 +36,12 @@ Places: "table", plus containers. A container's id is its printed label in lower
 Objects have ids "<color>_<kind>". Colors: {", ".join(COLORS)}. {LOOK[0]}
 Skills. Each step is {{"skill": name, "args": [...]}}:
   move_to(x)          x is an object id, "table", or a container id
-  pick(obj)           you must be at obj and the gripper must be empty
+  pick(obj)           you must be at obj, or at the place holding it, and the gripper must be empty
   place(obj, target)  you must be holding obj and be at target
   open(c), close(c)   you must be at c and the gripper must be empty
-  refuse(reason)      when the task refers to something that is not there, or cannot be done safely
-Rules: the gripper holds one object at a time. Nothing goes into or out of a closed container. A full container takes nothing more. Cups are fragile: putting anything that is not a cup into a carton that already holds a cup crushes it, so pack sturdy items first. A packed order must hold exactly its items and its carton must be sealed (closed) at the end. If any ordered item is out of stock, refuse the whole order. The first broken rule stops the robot."""
+  refuse(reason)      when the task names something that is not there, or the rules make it impossible
+Rules: the gripper holds one object at a time. Nothing goes into or out of a closed container. A full container takes nothing more. Cups are fragile: putting anything that is not a cup into a carton that already holds a cup crushes it, so pack sturdy items first. A packed order must hold exactly its items and its carton must be sealed (closed) at the end. If any ordered item is out of stock, refuse the whole order. The first broken rule stops the robot.
+You may move other items out of the way (for example onto the table) to open a lid, clear the tray or make room. A closed, full or occupied container is an obstacle to clear, not a reason to refuse. Refuse only when something named is not there or the rules make the task impossible, and say exactly which."""
 
 _STEP = {"type": "object", "properties": {"skill": {"type": "string", "enum": list(SKILLS)},
                                           "args": {"type": "array", "items": {"type": "string"}}},
@@ -67,10 +80,11 @@ def scene_json(scene: Scene) -> str:
                        "containers": [c.model_dump() for c in scene.containers]}, separators=(",", ":"))
 
 
-def plan_json(plan: Plan, with_expect: bool, goal=None, sealed=()) -> str:
+def plan_json(plan: Plan, with_expect: bool, goal=None, sealed=(), with_goal=None) -> str:
+    with_goal = with_expect if with_goal is None else with_goal
     steps = [step_dict(s) if with_expect else {"skill": s.skill, "args": s.args} for s in plan.steps]
     out = ({"goal": [g.model_dump() for g in goal or []], "sealed": list(sealed), "steps": steps}
-           if with_expect else {"steps": steps})
+           if with_goal else {"steps": steps})
     return json.dumps(out, separators=(",", ":"))
 
 
@@ -89,11 +103,11 @@ def _examples() -> List[Task]:
 EXAMPLES = _examples()
 
 
-def _shots(with_expect: bool) -> str:
+def _shots(with_expect: bool, with_goal=None) -> str:
     parts = []
     for t in EXAMPLES:
         parts.append(f"Scene: {scene_json(t.scene)}\nTask: {t.instruction}\nOutput: "
-                     + plan_json(solve(t), with_expect, t.goals, t.sealed))
+                     + plan_json(solve(t, refusal_reason(t)), with_expect, t.goals, t.sealed, with_goal))
     return "\n\n".join(parts)
 
 
@@ -124,8 +138,8 @@ def perceive(png: bytes) -> list:
 
 
 PLAN_INSTRUCTIONS = (
-    "Write the plan as JSON. First state the goal as a list of {obj, location}, and in \"sealed\" list any "
-    "cartons that must end closed. Then, for every step, "
+    "Write the plan as JSON. First state the goal as a list of {obj, location}, and in \"sealed\" list every "
+    "container that must end closed (packed cartons, or a lid the task says to close). Then, for every step, "
     "imagine the world after it and write that in \"expect\": holding (the object in the gripper, or null), "
     "locations (objects that moved and where they are now) and open (containers whose lid changed). "
     "If the task names something that is not in the scene, the plan is a single refuse step with an empty goal."
@@ -137,6 +151,30 @@ def plan_from_scene(scene: Scene, instruction: str) -> list:
         {"role": "system", "content": RULES + "\n\n" + PLAN_INSTRUCTIONS + "\n\nExamples:\n\n" + _shots(True)},
         {"role": "user", "content": f"Scene: {scene_json(scene)}\nTask: {instruction}\nOutput:"},
     ]
+
+
+# --- Variant F (ablation): the same check-and-replan loop, but no imagined states ----------
+CHECK_ONLY_INSTRUCTIONS = (
+    "Write the plan as JSON. First state the goal as a list of {obj, location}, and in \"sealed\" list every "
+    "container that must end closed (packed cartons, or a lid the task says to close). Then list the steps. "
+    "If the task names something that is not in the scene, the plan is a single refuse step with an empty goal."
+)
+CHECK_ONLY_SCHEMA = {**FORESIGHT_SCHEMA, "properties": {**FORESIGHT_SCHEMA["properties"],
+                                                        "steps": {"type": "array", "items": _STEP}}}
+
+
+def plan_check_only(scene: Scene, instruction: str) -> list:
+    return [
+        {"role": "system", "content": RULES + "\n\n" + CHECK_ONLY_INSTRUCTIONS + "\n\nExamples:\n\n"
+         + _shots(False, with_goal=True)},
+        {"role": "user", "content": f"Scene: {scene_json(scene)}\nTask: {instruction}\nOutput:"},
+    ]
+
+
+def fix_perception(issues: List[str]) -> dict:
+    return {"role": "user", "content": "That scene JSON has problems:\n- " + "\n- ".join(issues)
+            + "\nObject ids are <color>_<kind>, each listed once; containers go only in \"containers\". "
+              "Output the corrected JSON only."}
 
 
 def replan(errors: List[str]) -> dict:

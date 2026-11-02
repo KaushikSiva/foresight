@@ -31,6 +31,9 @@ CONCURRENCY = int(_env("FORESIGHT_CONCURRENCY", "8"))
 # "3d" renders in the MuJoCo packing station (needs mujoco + warehouse/), "2d" is the flat Pillow view.
 RENDER = _env("FORESIGHT_RENDER", "3d" if ((ROOT / "warehouse").is_dir() or (ROOT.parent / "warehouse").is_dir()) else "2d")
 MAX_REPLANS = int(_env("FORESIGHT_MAX_REPLANS", "2"))
+# For thinking models (e.g. GLM-5.3, which cannot turn thinking off). Same value for every variant. "" = omit.
+REASONING_EFFORT = _env("FORESIGHT_REASONING_EFFORT", "low")
+MAX_TOKENS = int(_env("FORESIGHT_MAX_TOKENS", "8000"))
 # If the plan still fails the check after all replans, refuse instead of executing it.
 FAIL_CLOSED = _env("FORESIGHT_FAIL_CLOSED", "1") == "1"
 

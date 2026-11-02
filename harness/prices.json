@@ -1,0 +1,4 @@
+{
+  "_comment": "USD per 1M tokens as [input, output], from the Fireworks model page (serverless).",
+  "accounts/fireworks/models/glm-5p3-flash": [0.15, 0.50]
+}

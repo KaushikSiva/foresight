@@ -47,6 +47,11 @@ DIMS = {"tray": (0.22, 0.30, 0.025), "bin": (0.24, 0.32, 0.10), "box": (0.20, 0.
 CELLS = ([(x, y) for x in (0.38, 0.24) for y in (-0.66, -0.47, -0.28, -0.09, 0.10, 0.29, 0.48, 0.67)]
          + [(0.10, y) for y in (-0.70, -0.50, 0.50, 0.70)])
 INNER = [(-0.05, 0.075), (-0.05, -0.075), (0.05, 0.075), (0.05, -0.075)]
+# Material colours for the 3D station. The station's lighting brightens everything, so these are
+# darker than the flat palette; they were chosen so the RENDERED hue lands on the named colour
+# (checked by a test). With the flat palette, orange rendered as yellow.
+RGB3D = {"red": (150, 18, 18), "orange": (190, 70, 5), "yellow": (175, 150, 10), "green": (20, 105, 40),
+         "blue": (15, 45, 150), "purple": (75, 25, 120), "pink": (200, 70, 120)}
 
 
 def _label_texture(text: str) -> Path:
@@ -160,7 +165,7 @@ def build_xml(task: Task, scene: Optional[Scene] = None) -> str:
         f'<texture name="t_label_{c.id}" type="2d" file="{_label_texture(c.id.replace("_", " ").upper())}"/>'
         f'<material name="label_{c.id}" texture="t_label_{c.id}" specular="0.05"/>' for c in scene.containers)
     colors = "".join(f'<material name="c_{n}" rgba="{r / 255:.3f} {g / 255:.3f} {b / 255:.3f} 1" specular="0.35" shininess="0.45"/>'
-                     for n, (r, g, b) in RGB.items())
+                     for n, (r, g, b) in RGB3D.items())
     pos = positions(task, scene)
     items = "".join(_item(o.id, o.color, o.kind, *pos[o.id], rng.uniform(-3.1, 3.1)) for o in scene.objects if o.id in pos)
     conts = "".join(_container(c.id, c.kind, c.is_open) for c in scene.containers)

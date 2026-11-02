@@ -28,6 +28,8 @@ class Call(BaseModel):
     latency_s: float = 0.0
     cached: bool = False
     error: Optional[str] = None
+    reasoning_tokens: int = 0
+    finish_reason: Optional[str] = None
 
 
 class Fireworks:
@@ -43,8 +45,10 @@ class Fireworks:
         config.CACHE.mkdir(parents=True, exist_ok=True)
 
     async def chat(self, model: str, messages: list, purpose: str, schema: Optional[dict] = None,
-                   max_tokens: int = 2000) -> Call:
+                   max_tokens: int = config.MAX_TOKENS) -> Call:
         body = {"model": model, "messages": messages, "temperature": 0, "max_tokens": max_tokens}
+        if config.REASONING_EFFORT:
+            body["reasoning_effort"] = config.REASONING_EFFORT
         if schema is not None:
             body["response_format"] = {"type": "json_object", "schema": schema}
         key = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
@@ -72,11 +76,22 @@ class Fireworks:
 
         data = r.json()
         usage = data.get("usage") or {}
-        call = Call(model=model, purpose=purpose, text=data["choices"][0]["message"].get("content") or "",
+        choice = data["choices"][0]
+        call = Call(model=model, purpose=purpose, text=choice["message"].get("content") or "",
                     prompt_tokens=usage.get("prompt_tokens", 0), completion_tokens=usage.get("completion_tokens", 0),
-                    latency_s=latency)
+                    reasoning_tokens=(usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0,
+                    finish_reason=choice.get("finish_reason"), latency_s=latency)
         path.write_text(call.model_dump_json(exclude={"purpose", "cached"}))
         return call
+
+    async def warmup(self, model: str) -> None:
+        """One untimed, unlogged call so the first scored task does not pay the cold start."""
+        try:
+            await self.client.post(config.FIREWORKS_URL, json={"model": model, "max_tokens": 16, "temperature": 0,
+                                   "messages": [{"role": "user", "content": "ok"}],
+                                   **({"reasoning_effort": config.REASONING_EFFORT} if config.REASONING_EFFORT else {})})
+        except httpx.HTTPError:
+            pass
 
     async def aclose(self):
         await self.client.aclose()
@@ -157,7 +172,7 @@ class Mock:
         plan = Plan(steps=steps)
         return {"goal": [g.model_dump() for g in goals], "sealed": sealed, "steps": [step_dict(s) for s in plan.steps]}
 
-    async def chat(self, model: str, messages: list, purpose: str, schema=None, max_tokens: int = 2000) -> Call:
+    async def chat(self, model: str, messages: list, purpose: str, schema=None, max_tokens: int = 8000) -> Call:
         self.n += 1
         small_penalty = 0.15 if "small" in model else 0.0
         if purpose == "perceive":

@@ -100,7 +100,9 @@ def search(scene: Scene, goals: List[Goal], sealed: Sequence[str] = (), budget: 
     if any(scene.obj(g.obj) is None or (g.location != TABLE and scene.container(g.location) is None) for g in goals):
         return None
     targets = {g.location for g in goals} | set(sealed)
-    movable = {g.obj for g in goals} | {o.id for o in scene.objects if o.location in targets}
+    # Sorted, never a raw set: set order changes between processes, which would change the
+    # tie-break between equally short plans, and with it the few-shot examples in the prompts.
+    movable = sorted({g.obj for g in goals} | {o.id for o in scene.objects if o.location in targets})
     places = [TABLE] + [c.id for c in scene.containers]
     lids = [c.id for c in scene.containers if c.kind in ("bin", "box", "carton")]
 

@@ -8,3 +8,6 @@ data/images/
 data/images3d/
 data/labels/
 data/ft/perception.jsonl
+data/review.json
+runs/*-mock.jsonl
+runs/*.log

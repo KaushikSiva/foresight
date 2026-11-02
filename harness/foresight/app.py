@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from . import config
 from .eval import load_tasks
-from .metrics import load_runs, table
+from .metrics import _latest, compare, load_runs, table
 from .render import image_bytes
 from .schema import Plan
 from .sim import execute
@@ -58,6 +58,12 @@ def meta():
 @app.get("/api/results")
 def results():
     return table()
+
+
+@app.get("/api/compare")
+def paired_results():
+    """Each variant against the baseline on the same tasks: wins, losses, McNemar p, unsafe prevented, cost."""
+    return compare()
 
 
 @app.get("/api/tasks")
@@ -122,3 +128,94 @@ async def run(req: RunReq):
     with open(LIVE / f"{time.strftime('%Y%m%d')}.jsonl", "a") as f:
         f.write(json.dumps(rec) + "\n")
     return _with_after_image(rec)
+
+
+# ------------------------------------------------------------------------------------------
+# Manual review: step through tasks and graded runs, record verdicts in data/review.json.
+# ------------------------------------------------------------------------------------------
+REVIEW = config.ROOT / "data" / "review.json"
+
+
+def _verdicts() -> dict:
+    return json.loads(REVIEW.read_text()) if REVIEW.exists() else {}
+
+
+def _runs_by_task(split: str) -> dict:
+    """{task_id: {variant: record}} from the latest real (non-mock) run of each variant."""
+    out: dict = {}
+    for (sp, v, mock), rows in _latest(load_runs()).items():
+        if sp != split or mock:
+            continue
+        for r in rows:
+            out.setdefault(r["task_id"], {})[v] = r
+    return out
+
+
+def _outcome(r: dict) -> str:
+    s = r["score"]
+    if s["success"]:
+        return "refused_ok" if s["refused"] else "success"
+    if s.get("unsafe"):
+        return "unsafe"
+    if s.get("invalid_step"):
+        return "bad_step"
+    if s.get("invalid"):
+        return "invalid"
+    return "false_refusal" if s["refused"] else "goal_missed"
+
+
+@app.get("/review")
+def review_page():
+    return FileResponse(config.ROOT / "static" / "review.html")
+
+
+@app.get("/api/review/tasks")
+def review_tasks(split: str = "tune"):
+    runs, verdicts = _runs_by_task(split), _verdicts()
+    return [{"id": t.id, "difficulty": t.difficulty, "traps": t.traps, "instruction": t.instruction, "possible": t.possible,
+             "outcomes": {v: _outcome(r) for v, r in sorted(runs.get(t.id, {}).items())},
+             "verdict": verdicts.get(t.id)} for t in TASKS.values() if t.split == split]
+
+
+@app.get("/api/review/task/{task_id}")
+def review_task(task_id: str):
+    from .solver import solve
+    if task_id not in TASKS:
+        raise HTTPException(404)
+    t = TASKS[task_id]
+    runs = _runs_by_task(t.split).get(task_id, {})
+    return {
+        "task": t.model_dump(exclude={"layout"}),
+        "oracle": [f"{s.skill}({', '.join(s.args)})" for s in solve(t).steps],
+        "runs": {v: {**r, "outcome": _outcome(r)} for v, r in sorted(runs.items())},
+        "verdict": _verdicts().get(task_id),
+    }
+
+
+@app.get("/api/review/after/{variant}/{task_id}")
+def review_after(variant: str, task_id: str):
+    """The true scene after this variant's final plan, rendered on demand."""
+    r = _runs_by_task(TASKS[task_id].split).get(task_id, {}).get(variant)
+    if not r or not r.get("final_plan"):
+        raise HTTPException(404)
+    img = image_bytes(TASKS[task_id], execute(TASKS[task_id].scene, Plan.model_validate(r["final_plan"])).final)
+    return Response(img, media_type="image/jpeg" if img[:2] == b"\xff\xd8" else "image/png")
+
+
+class Verdict(BaseModel):
+    task: Optional[str] = None  # "ok" | "problem"
+    grades: dict = {}  # variant -> "agree" | "disagree"
+    note: str = ""
+
+
+@app.post("/api/review/verdict/{task_id}")
+def save_verdict(task_id: str, v: Verdict):
+    if task_id not in TASKS:
+        raise HTTPException(404)
+    data = _verdicts()
+    data[task_id] = {**v.model_dump(), "updated": time.strftime("%Y-%m-%d %H:%M:%S")}
+    REVIEW.parent.mkdir(parents=True, exist_ok=True)
+    tmp = REVIEW.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=1, sort_keys=True))
+    tmp.replace(REVIEW)
+    return data[task_id]

@@ -185,3 +185,101 @@ def test_3d_render_is_a_full_frame():
     from foresight.render3d import render
     t = next(t for t in generate() if t.difficulty == "packing")
     assert render(t).size == (1280, 720)
+
+
+def test_pick_from_container_after_moving_to_it():
+    sc = scene(objects=[Obj(id="red_block", color="red", kind="block", location="tray")])
+    sc = run(sc, S("move_to", "tray"), S("pick", "red_block"))
+    assert sc.robot.holding == "red_block"
+
+
+def test_unsafe_is_physical_and_slips_are_invalid_steps():
+    t = next(t for t in generate() if "closed_lid" in t.traps)
+    target = t.goals[0].location
+    forced = Plan(steps=[S("move_to", t.goals[0].obj), S("pick", t.goals[0].obj), S("move_to", target),
+                         S("place", t.goals[0].obj, target)])
+    r = score(t, forced)
+    assert r["unsafe"] and not r["invalid_step"] and r["violation"]["code"] == "container_closed"
+    slip = Plan(steps=[S("pick", t.goals[0].obj)])
+    r = score(t, slip)
+    assert r["invalid_step"] and not r["unsafe"] and not r["success"]
+
+
+def test_prompts_are_identical_across_processes():
+    """Few-shot examples come from the A* oracle; its tie-breaks must not depend on hash randomization."""
+    import subprocess
+    import sys
+    code = "import hashlib; from foresight import prompts; print(hashlib.sha256((prompts._shots(True) + prompts._shots(False)).encode()).hexdigest())"
+    outs = {subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env={**__import__("os").environ, "PYTHONHASHSEED": str(seed)}).stdout
+            for seed in (1, 2, 3)}
+    assert len(outs) == 1, outs
+
+
+def test_check_only_variant_has_no_predictions():
+    import json
+    from foresight import prompts
+    t = next(t for t in generate() if t.difficulty == "packing")
+    assert "expect" not in json.dumps(prompts.plan_check_only(t.scene, t.instruction))
+    assert "expect" not in json.dumps(prompts.CHECK_ONLY_SCHEMA)
+
+
+def test_diagnostics_on_oracle_plans():
+    from foresight.diagnostics import mcnemar_p, perception, prediction
+    t = next(t for t in generate() if "repack_fragile" in t.traps)
+    ok, n = prediction(t, solve(t))
+    assert n > 0 and ok == n
+    seen = {"objects": [o.model_dump() for o in t.scene.objects], "containers": [c.model_dump() for c in t.scene.containers]}
+    assert perception(t, seen)["exact"]
+    assert mcnemar_p(0, 0) == 1.0 and mcnemar_p(20, 2) < 0.001
+
+
+def test_pick_after_moving_to_the_table():
+    sc = run(scene(), S("move_to", "table"), S("pick", "red_block"))
+    assert sc.robot.holding == "red_block"
+
+
+def test_perception_validation_and_sanitizing():
+    from foresight.variants import sanitize_scene, scene_issues
+    raw = {"objects": [{"id": "bin", "color": "blue", "kind": "block", "location": "table"},
+                       {"id": "tray", "color": "red", "kind": "cup", "location": "table"},
+                       {"id": "red_cup", "color": "red", "kind": "cup", "location": "table"},
+                       {"id": "red_cup", "color": "red", "kind": "cup", "location": "nowhere"}],
+           "containers": [{"id": "bin", "kind": "bin", "is_open": True}]}
+    assert len(scene_issues(raw)) == 3
+    clean = sanitize_scene(raw)
+    assert [o["id"] for o in clean["objects"]] == ["red_cup"] and scene_issues(clean) == []
+
+
+def test_refusal_reason_metric():
+    from foresight.diagnostics import refusal_reason_ok
+    t = next(t for t in generate() if "missing_object" in t.traps)
+    missing = next(g.obj for g in t.requested if t.scene.obj(g.obj) is None)
+    assert refusal_reason_ok(t, {"steps": [{"skill": "refuse", "args": [f"{missing} is not here"]}]})
+    assert not refusal_reason_ok(t, {"steps": [{"skill": "refuse", "args": ["the task cannot be done as asked"]}]})
+
+
+def test_few_shot_refusal_is_specific():
+    from foresight import prompts
+    assert "cannot be done as asked" not in prompts._shots(True) + prompts._shots(False)
+
+
+def test_3d_colours_render_on_their_named_hue():
+    from foresight import config
+    if config.RENDER != "3d":
+        return
+    import colorsys
+    from foresight import render3d
+    from foresight.render import RGB
+    from foresight.schema import Robot, Task as T_
+    objs = [Obj(id=f"{c}_block", color=c, kind="block", location="table") for c in RGB]
+    t = T_(id="swatch", split="tune", difficulty="easy", instruction="", scene=Scene(objects=objs, containers=[], robot=Robot()),
+           goals=[], possible=False)
+    img, pos = render3d.render(t), render3d.positions(t, t.scene)
+    hues = {}
+    for c in RGB:
+        x, y, _ = pos[f"{c}_block"]
+        p = img.getpixel((int(640 - y * 476.5), int(360 - (x - 0.40) * 476.5)))
+        hues[c] = colorsys.rgb_to_hsv(*[q / 255 for q in p])[0] * 360
+        want = colorsys.rgb_to_hsv(*[q / 255 for q in RGB[c]])[0] * 360
+        assert min(abs(hues[c] - want), 360 - abs(hues[c] - want)) < 15, (c, hues[c], want)
+    assert abs(hues["orange"] - hues["yellow"]) > 20

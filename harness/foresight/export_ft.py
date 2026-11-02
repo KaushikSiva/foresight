@@ -36,7 +36,7 @@ def main() -> None:
             n["perception"] += 1
 
             msgs = prompts.plan_from_scene(t.scene, t.instruction)
-            good = prompts.plan_json(solve(t), True, t.goals, t.sealed)
+            good = prompts.plan_json(solve(t, prompts.refusal_reason(t)), True, t.goals, t.sealed)
             fl.write(json.dumps({"messages": msgs + [{"role": "assistant", "content": good}]}) + "\n")
             n["planning"] += 1
 

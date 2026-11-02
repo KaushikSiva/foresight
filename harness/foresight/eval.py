@@ -66,9 +66,32 @@ def render_3d(tasks: List[Task], workers: int = 4) -> None:
                 print(f"  3d: {i}/{len(tasks)} ({time.time() - t0:.0f}s)", flush=True)
 
 
+def manifest(variant: str, split: str, mock: bool) -> dict:
+    """What produced a run: hashes of tasks, prompts and code, plus model and settings. Its id goes on every record."""
+    import hashlib
+    from . import prompts
+    from .variants import models
+    h = lambda b: hashlib.sha256(b).hexdigest()[:12]
+    code = b"".join(p.read_bytes() for p in sorted((config.ROOT / "foresight").glob("*.py")))
+    prompt_text = json.dumps([prompts.RULES, prompts.PLAN_INSTRUCTIONS, prompts.PLAN_SCHEMA, prompts.FORESIGHT_SCHEMA,
+                              prompts.SCENE_SCHEMA, prompts._shots(True), prompts._shots(False)], sort_keys=True)
+    m = {
+        "variant": variant, "split": split, "mock": mock, "models": models(mock),
+        "settings": {"reasoning_effort": config.REASONING_EFFORT, "max_tokens": config.MAX_TOKENS,
+                     "max_replans": config.MAX_REPLANS, "fail_closed": config.FAIL_CLOSED, "render": config.RENDER},
+        "hashes": {"tasks": h(TASKS.read_bytes()), "prompts": h(prompt_text.encode()), "code": h(code)},
+    }
+    m["id"] = h(json.dumps({k: m[k] for k in ("models", "settings", "hashes")}, sort_keys=True).encode())
+    return m
+
+
 async def _run_variant(variant: str, tasks: List[Task], mock: bool) -> List[dict]:
     from .llm import Fireworks, Mock
+    from .variants import models
     llm = None if mock else Fireworks()
+    if llm:
+        for m in {v for v in models(False).values() if v}:
+            await llm.warmup(m)
     done, t0 = 0, time.time()
 
     async def one(task: Task) -> dict:
@@ -106,12 +129,19 @@ def cmd_run(args) -> None:
             if out.exists() and not args.force:
                 sys.exit(f"{out.name} already exists; the held-out set is run once. --force to overwrite.")
         print(f"running {v} ({VARIANTS[v]}) on {len(tasks)} {args.split} tasks" + (" [MOCK]" if args.mock else ""))
+        man = {**manifest(v, args.split, args.mock), "started": time.strftime("%Y-%m-%d %H:%M:%S"),
+               "tasks": [t.id for t in tasks]}
         recs = asyncio.run(_run_variant(v, tasks, args.mock))
+        for r in recs:
+            r["manifest"] = man["id"]
         out.write_text("".join(json.dumps(r) + "\n" for r in recs))
+        out.with_suffix(".meta.json").write_text(json.dumps(man, indent=1))
+        print(f"  manifest {man['id']}  (tasks {man['hashes']['tasks']}, prompts {man['hashes']['prompts']}, code {man['hashes']['code']})")
         bad = sum(bool(r["api_errors"]) for r in recs)
         if bad:
             print(f"  warning: {bad} tasks had API errors (see api_errors in {out.name})")
-    print(fmt(table()))
+    from .metrics import report
+    print(report())
 
 
 def main() -> None:
@@ -137,7 +167,8 @@ def main() -> None:
     elif args.cmd == "run":
         cmd_run(args)
     else:
-        print(fmt(table()))
+        from .metrics import report
+        print(report())
 
 
 if __name__ == "__main__":

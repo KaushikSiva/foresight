@@ -107,7 +107,7 @@ th:first-child, td:first-child { text-align: left; }
       <h1>Foresight</h1>
       <p class="sub">Gemma imagines each robot action, writes the plan as code, and checks it in simulation before anything moves.</p>
     </div>
-    <div class="chips" id="models"></div>
+    <div class="chips" id="models"><a class="chip" href="/review" style="text-decoration:none">Review tasks and grades →</a></div>
   </header>
   <div id="banner"></div>
 
@@ -174,7 +174,7 @@ const TRAP = {
   out_of_stock: "One ordered item is not in stock",
 };
 const DIFF = { easy: "Easy", multi_step: "Multi-step", blocked: "Blocked", impossible: "Impossible", packing: "Packing" };
-let META, TASKS = [], source = "logged", resSplit = "heldout", RESULTS = {}, view = "overhead";
+let COMPARE = {}, META, TASKS = [], source = "logged", resSplit = "heldout", RESULTS = {}, view = "overhead";
 const sides = { L: "A", R: "C" };
 
 const tip = $("#tip");
@@ -195,7 +195,7 @@ function seg(el, cb) {
 async function init() {
   META = await (await fetch("/api/meta")).json();
   const m = META.models;
-  $("#models").innerHTML = [["A–C", m.main], ["D small", m.small], ["D large", m.large], ["E fine-tuned", m.ft]]
+  $("#models").innerHTML = `<a class="chip" href="/review" style="text-decoration:none">Review tasks and grades →</a>` + [["A–C", m.main], ["D small", m.small], ["D large", m.large], ["E fine-tuned", m.ft]]
     .filter(([, v]) => v).map(([k, v]) => `<span class="chip">${k}: ${esc(v.split("/").pop())}</span>`).join("")
     || `<span class="chip">no model configured</span>`;
   TASKS = await (await fetch("/api/tasks")).json();
@@ -209,6 +209,7 @@ async function init() {
   seg($("#resSplit"), v => { resSplit = v; drawResults(); });
   $("#go").onclick = runBoth;
   RESULTS = await (await fetch("/api/results")).json();
+  COMPARE = await (await fetch("/api/compare")).json();
   if (!RESULTS.heldout && RESULTS.tune) { resSplit = "tune"; $("#resSplit").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === "tune")); }
   drawResults();
 }
@@ -237,7 +238,8 @@ function outcome(r) {
   const s = r.score;
   if (s.success && s.refused) return ["good", "✓ Correctly refused"];
   if (s.success) return ["good", "✓ Task done safely"];
-  if (s.unsafe) return ["bad", `⚠ Unsafe: broke a rule at step ${s.violation.step + 1}`];
+  if (s.unsafe) return ["bad", `⚠ Unsafe at step ${s.violation.step + 1}`];
+  if (s.invalid_step) return ["meh", `✕ Invalid step ${s.violation.step + 1}`];
   if (s.invalid) return ["meh", "✕ Invalid program"];
   if (s.refused) return r.possible ? ["meh", "✕ Refused a doable task"] : ["good", "✓ Refused"];
   return r.possible ? ["meh", "✕ Goal not reached"] : ["bad", "✕ Acted on a task it should refuse"];
@@ -339,17 +341,59 @@ function drawResults() {
     }).join("")}</tr>`).join("")}</tbody></table></div>`;
 
   const money = x => x == null ? "–" : "$" + x.toFixed(4);
-  const tbl = `<div class="table-wrap"><table><thead><tr><th>Variant</th><th>n</th><th>Success</th><th>95% CI</th><th>Invalid</th><th>Unsafe</th>
+  const tbl = `<div class="table-wrap"><table><thead><tr><th>Variant</th><th>n</th><th>Success</th><th>95% CI</th><th data-tip="Output could not be parsed">Invalid</th><th data-tip="A sequencing slip stopped the robot">Bad step</th><th data-tip="A physical hazard: crush, closed or full container, full gripper">Unsafe</th>
     <th data-tip="Impossible tasks that were refused">Refused ✓</th><th data-tip="Doable tasks that were refused">Refused ✗</th><th>p50 s</th><th>p95 s</th><th>Calls/task</th><th>$ / success</th></tr></thead><tbody>
     ${vs.map(v => { const s = data[v]; return `<tr><td>${esc(name(v))}</td><td>${s.n}</td><td>${pct(s.success)}</td>
-      <td>${pct(s.success_ci[0])}–${pct(s.success_ci[1])}</td><td>${pct(s.invalid)}</td><td>${pct(s.unsafe)}</td>
+      <td>${pct(s.success_ci[0])}–${pct(s.success_ci[1])}</td><td>${pct(s.invalid)}</td><td>${pct(s.invalid_step ?? 0)}</td><td>${pct(s.unsafe)}</td>
       <td>${pct(s.correct_refusal)}</td><td>${pct(s.false_refusal)}</td><td>${s.p50_latency_s.toFixed(2)}</td><td>${s.p95_latency_s.toFixed(2)}</td>
       <td>${s.calls_per_task.toFixed(2)}</td><td>${money(s.cost_per_success)}</td></tr>`; }).join("")}</tbody></table></div>`;
 
   $("#results").innerHTML = `<div class="grid2"><div><h2 style="font-size:15px">Task success, with 95% interval</h2>${bars}</div>
     <div><h2 style="font-size:15px">Success by difficulty</h2>${heat}</div></div>
     <div style="margin-top:18px">${tbl}</div>
+    ${pairedHtml(name)}
+    ${diagHtml(data, name)}
     <p class="note">Every number is computed from logged runs in runs/*.jsonl and graded in a hidden true scene that the model and the checker never see. Cost uses logged tokens × prices.json (shown as – until prices are set).${anyMock ? " * = mock model." : ""}</p>`;
+}
+
+function pairedHtml(name) {
+  const c = COMPARE[resSplit] || {};
+  const vs = Object.keys(c);
+  if (!vs.length) return "";
+  const money = x => x == null ? "–" : "$" + x.toFixed(4);
+  const p = x => x < 0.0001 ? "< 0.0001" : x.toFixed(4);
+  return `<h2 style="font-size:15px;margin-top:22px">Is the gain real? Paired against the baseline on the same tasks</h2>
+  <div class="table-wrap"><table><thead><tr><th>Variant</th><th>Tasks</th>
+    <th data-tip="Tasks the baseline failed and this variant solved">Wins</th><th data-tip="Tasks the baseline solved and this variant failed">Losses</th>
+    <th data-tip="Exact McNemar test on wins vs losses. Below 0.05 means the difference is unlikely to be chance">p-value</th>
+    <th data-tip="Baseline was unsafe here, this variant was not">Unsafe prevented</th><th data-tip="This variant was unsafe where the baseline was not">Unsafe added</th>
+    <th data-tip="Extra spend over the baseline, divided by (wins − losses)">$ per prevented failure</th>
+    <th data-tip="Extra spend divided by net unsafe actions prevented">$ per prevented unsafe action</th></tr></thead><tbody>
+    ${vs.map(v => { const s = c[v]; return `<tr><td>${esc(name(v))}</td><td>${s.n}</td><td>${s.wins}</td><td>${s.losses}</td><td>${p(s.p_value)}</td>
+      <td>${s.unsafe_prevented}</td><td>${s.unsafe_added}</td><td>${money(s.cost_per_prevented_failure)}</td><td>${money(s.cost_per_prevented_unsafe)}</td></tr>`; }).join("")}
+  </tbody></table></div>`;
+}
+
+function diagHtml(data, name) {
+  const vs = Object.keys(data).filter(v => !data[v].mock);
+  if (!vs.length) return "";
+  const x = (v) => v == null ? "–" : pct(v);
+  return `<h2 style="font-size:15px;margin-top:22px">Why: perception, imagination and the checker (scored in the true scene)</h2>
+  <div class="table-wrap"><table><thead><tr><th>Variant</th>
+    <th data-tip="Objects found in the image vs. truth (F1 by id)">Perception F1</th><th data-tip="Open/closed read correctly">Lids</th>
+    <th data-tip="Whole scene read exactly right">Scene exact</th>
+    <th data-tip="First plan: share of predicted step states that came true. A rule-breaking step counts as a miss">Prediction (1st plan)</th>
+    <th data-tip="First plans that would have failed in the true scene">1st plan would fail</th>
+    <th data-tip="Of those, how many the checker flagged">Caught</th><th data-tip="Good first plans the checker wrongly flagged">False alarms</th>
+    <th data-tip="Flagged tasks that ended in success after replanning">Recovered</th>
+    <th data-tip="Would-fail first plans the checker did not flag; refusals are never checked">Blind spots (refusals)</th>
+    <th data-tip="Plan length vs. the shortest possible plan, on successes">Steps vs. shortest</th>
+    <th data-tip="Refusals of impossible tasks whose reason names what actually makes them impossible">Refused for the right reason</th></tr></thead><tbody>
+    ${vs.map(v => { const s = data[v], c = s.checker || {}; return `<tr><td>${esc(name(v))}</td><td>${x(s.perception_f1)}</td><td>${x(s.lid_acc)}</td>
+      <td>${x(s.perception_exact)}</td><td>${x(s.prediction_acc_first)}</td><td>${c.first_plan_fails ?? "–"}</td><td>${x(c.catch_rate)}</td>
+      <td>${x(c.false_alarm_rate)}</td><td>${x(c.recovery_rate)}</td><td>${c.blind_spots ?? "–"} (${c.blind_refusals ?? "–"})</td>
+      <td>${s.efficiency == null ? "–" : s.efficiency.toFixed(2) + "×"}</td><td>${x(s.refusal_reason_ok)}</td></tr>`; }).join("")}
+  </tbody></table></div>`;
 }
 
 init();

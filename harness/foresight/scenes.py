@@ -122,7 +122,7 @@ def _distract(b: _Builder, targets: List[Obj], total: int) -> None:
 def _settle(b: _Builder, goals: List[Goal], keep_full: Tuple[str, ...] = ()) -> None:
     """Remove accidental blockers, keeping only the ones a variant created on purpose."""
     goal_objs = {g.obj for g in goals}
-    for cid in {g.location for g in goals} - {TABLE} - set(keep_full):
+    for cid in sorted({g.location for g in goals} - {TABLE} - set(keep_full)):
         need = sum(1 for g in goals if g.location == cid and b.loc(g.obj) != cid)
         while b.room(cid) < need:
             next(o for o in reversed(b.objects) if o.location == cid and o.id not in goal_objs).location = TABLE

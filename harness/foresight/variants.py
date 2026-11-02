@@ -5,6 +5,8 @@ B  Constrained  image -> plan, JSON schema + few-shot
 C  Foresight    image -> scene JSON -> plan with predicted states -> check -> replan (<= MAX_REPLANS)
 D  Routed       Foresight on the small model (1 replan); escalate to the large model if the check still fails
 E  Fine-tuned   Foresight on the fine-tuned model
+F  Check only   ablation of C: same perception, checker and replans, but no predicted states.
+                C minus F isolates what imagining each step adds beyond retrying on rule errors.
 """
 from typing import List, Optional, Tuple
 
@@ -17,7 +19,8 @@ from .schema import Goal, Plan, Scene, Step, Task, step_dict
 from .sim import score
 from .validator import check
 
-VARIANTS = {"A": "Baseline", "B": "Constrained", "C": "Foresight", "D": "Routed", "E": "Fine-tuned"}
+VARIANTS = {"A": "Baseline", "B": "Constrained", "C": "Foresight", "D": "Routed", "E": "Fine-tuned",
+            "F": "Check only"}
 
 
 def models(mock: bool) -> dict:
@@ -42,6 +45,48 @@ def to_plan(obj) -> Tuple[Optional[Plan], List[Goal], List[str]]:
     return (plan if plan.steps else None), goal, sealed
 
 
+def scene_issues(obj) -> List[str]:
+    """Problems that make a perceived scene unusable as-is (checked before trusting it)."""
+    from .scenes import COLORS, KINDS
+    if not isinstance(obj, dict):
+        return ["the output was not a JSON object"]
+    issues, seen = [], set()
+    cids = {c.get("id") for c in obj.get("containers", []) if isinstance(c, dict)}
+    for o in obj.get("objects", []):
+        if not isinstance(o, dict):
+            issues.append("an object entry is not an object")
+            continue
+        oid, color, kind = o.get("id"), o.get("color"), o.get("kind")
+        if oid in cids or kind not in KINDS or color not in COLORS:
+            issues.append(f"'{oid}' is not an item (containers belong in \"containers\")")
+        elif oid != f"{color}_{kind}":
+            issues.append(f"'{oid}' should be named {color}_{kind}")
+        elif oid in seen:
+            issues.append(f"'{oid}' is listed more than once")
+        seen.add(oid)
+    return issues
+
+
+def sanitize_scene(obj) -> dict:
+    """Keep only well-formed items: id rebuilt from color and kind, duplicates and containers dropped."""
+    from .scenes import COLORS, KINDS
+    if not isinstance(obj, dict):
+        return {"objects": [], "containers": []}
+    conts = [c for c in obj.get("containers", []) if isinstance(c, dict)]
+    cids = {c.get("id") for c in conts}
+    out, seen = [], set()
+    for o in obj.get("objects", []):
+        if not isinstance(o, dict) or o.get("id") in cids or o.get("kind") not in KINDS or o.get("color") not in COLORS:
+            continue
+        oid = f"{o['color']}_{o['kind']}"
+        if oid in seen:
+            continue
+        seen.add(oid)
+        loc = o.get("location") if o.get("location") in cids | {"table"} else "table"
+        out.append({**o, "id": oid, "location": loc})
+    return {"objects": out, "containers": conts}
+
+
 def to_scene(obj) -> Optional[Scene]:
     if not isinstance(obj, dict):
         return None
@@ -63,21 +108,34 @@ async def _direct(llm, model: str, task: Task, constrained: bool) -> dict:
             "perceived": None, "passed_check": None}
 
 
-async def foresight(llm, model: str, task: Task, max_replans: int, fail_closed: bool) -> dict:
+async def foresight(llm, model: str, task: Task, max_replans: int, fail_closed: bool, imagine: bool = True) -> dict:
     calls: List[Call] = []
-    call = await llm.chat(model, prompts.perceive(image_bytes(task)), "perceive", schema=prompts.SCENE_SCHEMA)
+    look = prompts.perceive(image_bytes(task))
+    call = await llm.chat(model, look, "perceive", schema=prompts.SCENE_SCHEMA)
     calls.append(call)
-    scene = to_scene(parse_json(call.text))
+    raw = parse_json(call.text)
+    issues = scene_issues(raw)
+    if issues:  # one retry with the problems spelled out, then keep whichever output is cleaner
+        retry = await llm.chat(model, look + [{"role": "assistant", "content": call.text}, prompts.fix_perception(issues)],
+                               "perceive", schema=prompts.SCENE_SCHEMA)
+        calls.append(retry)
+        raw2 = parse_json(retry.text)
+        if raw2 is not None and len(scene_issues(raw2)) <= len(issues):
+            raw = raw2
+    scene = to_scene(sanitize_scene(raw)) if raw is not None else None
     out = {"calls": calls, "attempts": [], "perceived": scene, "final_plan": None, "passed_check": False,
-           "fail_closed": False}
+           "fail_closed": False, "perception_issues": issues}
     if scene is None:
         out["attempts"].append({"model": model, "text": call.text, "errors": ["perception output was not a valid scene"]})
         return out
 
-    messages = prompts.plan_from_scene(scene, task.instruction)
+    if imagine:
+        messages, schema = prompts.plan_from_scene(scene, task.instruction), prompts.FORESIGHT_SCHEMA
+    else:
+        messages, schema = prompts.plan_check_only(scene, task.instruction), prompts.CHECK_ONLY_SCHEMA
     plan, errors = None, []
     for attempt in range(1 + max_replans):
-        call = await llm.chat(model, messages, "plan" if attempt == 0 else "replan", schema=prompts.FORESIGHT_SCHEMA)
+        call = await llm.chat(model, messages, "plan" if attempt == 0 else "replan", schema=schema)
         calls.append(call)
         plan, goal, sealed = to_plan(parse_json(call.text))
         errors = ["the output was not a valid JSON plan"] if plan is None else check(scene, plan, goal, sealed)
@@ -111,6 +169,8 @@ async def run_task(variant: str, task: Task, llm) -> dict:
             big["calls"] = r["calls"] + big["calls"]
             big["attempts"] = r["attempts"] + big["attempts"]
             r = big
+    elif variant == "F":
+        r = await foresight(llm, m["main"], task, config.MAX_REPLANS, config.FAIL_CLOSED, imagine=False)
     elif variant == "E":
         if not m["ft"]:
             raise RuntimeError("FORESIGHT_MODEL_FT is not set")
@@ -127,6 +187,7 @@ async def run_task(variant: str, task: Task, llm) -> dict:
         "attempts": r["attempts"],
         "final_plan": {"steps": [step_dict(s) for s in plan.steps]} if plan else None,
         "passed_check": r["passed_check"], "fail_closed": r.get("fail_closed", False), "escalated": escalated,
+        "perception_issues": r.get("perception_issues", []),
         "score": score(task, plan),
         "calls": [c.model_dump(exclude={"text"}) for c in calls],
         "api_errors": [c.error for c in calls if c.error],
