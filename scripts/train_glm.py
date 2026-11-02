@@ -11,7 +11,7 @@ import random
 import subprocess
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,6 +36,7 @@ ANSWER_OPEN = "<|assistant|><think></think>"
 END = "<|endoftext|>"
 STOP = ["<|user|>", "<|observation|>", END]
 RUNS = ROOT / "runs" / "training"
+FILM_POOL = ThreadPoolExecutor(2)
 
 
 class Spend:
@@ -115,8 +116,6 @@ class SnapshotClient:
 
 
 def perceive_with(client, texts, scenes):
-    from concurrent.futures import ThreadPoolExecutor
-
     def run(scene):
         path = ROOT / "data" / "warehouse" / "images" / f"{scene['id']}.jpg"
         url = "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode()
@@ -142,20 +141,21 @@ def film(scene_id, program, step, title, out_dir):
     return path
 
 
-def evaluate(step, training_client, service, texts, scenes, spend, pool, film_ids, out_dir, log):
+def evaluate(step, training_client, service, texts, scenes, spend, pool, film_ids, out_dir, log, filmer):
+    started = time.monotonic()
     snapshot = training_client.save_weights_for_sampler(f"s{step:04d}").result().path
     client = SnapshotClient(service.create_sampling_client(model_path=snapshot, tokenizer=texts.tok), texts, spend)
     perception = perceive_with(client, texts, scenes)
     read_right = sum(perception[s["id"]]["totes"] == s["totes"] for s in scenes)
     records = run_variant(client, "snapshot", foresight, scenes, perception, pool=pool)
     summary = summarize(records)
-    summary.update(step=step, perception_right=read_right, snapshot=snapshot, spend_usd=round(spend.usd, 3))
+    summary.update(step=step, perception_right=read_right, snapshot=snapshot, spend_usd=round(spend.usd, 3), eval_minutes=round((time.monotonic() - started) / 60, 1))
     with open(out_dir / f"step{step:04d}.jsonl", "w") as f:
         for record in records:
             f.write(json.dumps({**record, "perceived": perception[record["scene"]]["totes"]}) + "\n")
     log.write(json.dumps({"eval": summary}) + "\n")
     log.flush()
-    print("EVAL", json.dumps({k: summary[k] for k in ("step", "successes", "n", "perception_right", "unsafe", "withheld", "errors", "outcomes", "tokens_out", "spend_usd", "by_tier")}), flush=True)
+    print("EVAL", json.dumps({k: summary[k] for k in ("step", "successes", "n", "perception_right", "unsafe", "withheld", "errors", "outcomes", "tokens_out", "spend_usd", "eval_minutes", "by_tier")}), flush=True)
 
     metrics = {"eval/success_rate": summary["success_rate"], "eval/perception_rate": read_right / len(scenes), "eval/unsafe": summary["unsafe"],
                "eval/withheld": summary["withheld"], "eval/reply_tokens_mean": summary["tokens_out"] / len(scenes), "spend_usd": spend.usd}
@@ -167,10 +167,26 @@ def evaluate(step, training_client, service, texts, scenes, spend, pool, film_id
     metrics["eval/plans"] = table
     plan_of = {r["scene"]: r.get("program") for r in records}
     for scene_id in film_ids:
-        path = film(scene_id, plan_of[scene_id], step, f"GLM 5.3 Flash, training step {step}", out_dir)
-        if path:
-            metrics[f"video/{scene_id}"] = wandb.Video(str(path), format="mp4")
+        filmer.append((scene_id, step, FILM_POOL.submit(film, scene_id, plan_of[scene_id], step, f"GLM 5.3 Flash, training step {step}", out_dir)))
     wandb.log(metrics, step=step)
+    return summary
+
+
+def held_out(best, service, texts, spend, pool, out_dir, log):
+    """The one-time test: the checkpoint chosen on tuning orders, on orders it has never been judged on."""
+    scenes = load_scenes("held_out")
+    client = SnapshotClient(service.create_sampling_client(model_path=best["snapshot"], tokenizer=texts.tok), texts, spend)
+    perception = perceive_with(client, texts, scenes)
+    read_right = sum(perception[s["id"]]["totes"] == s["totes"] for s in scenes)
+    records = run_variant(client, "snapshot", foresight, scenes, perception, pool=pool)
+    summary = summarize(records)
+    summary.update(step=best["step"], perception_right=read_right, split="held_out", spend_usd=round(spend.usd, 3))
+    with open(out_dir / "held_out.jsonl", "w") as f:
+        for record in records:
+            f.write(json.dumps({**record, "perceived": perception[record["scene"]]["totes"]}) + "\n")
+    log.write(json.dumps({"held_out": summary}) + "\n")
+    log.flush()
+    print("HELD_OUT", json.dumps({k: summary[k] for k in ("step", "successes", "n", "perception_right", "unsafe", "withheld", "errors", "outcomes", "tokens_out", "p50_latency_s", "spend_usd", "by_tier")}), flush=True)
     return summary
 
 
@@ -179,7 +195,7 @@ def main():
     parser.add_argument("--smoke", action="store_true", help="a tiny paid run to prove the loop: 4 examples, 2 eval orders")
     parser.add_argument("--max-usd", type=float, default=15.0)
     parser.add_argument("--batch", type=int, default=8)
-    parser.add_argument("--checkpoints", default="0,10,25,45,75")
+    parser.add_argument("--checkpoints", default="0,25,50,75")
     parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--rank", type=int, default=32)
     parser.add_argument("--per-tier", type=int, default=10)
@@ -225,11 +241,11 @@ def main():
     spend = Spend(args.max_usd)
     service = FiretitanServiceClient(api_key=os.environ["FIREWORKS_API_KEY"], base_url=SERVERLESS_URL)
     pool = ProcessPoolExecutor(8)
-    results = []
+    results, filmer = [], []
     try:
         training_client = service.create_lora_training_client(BASE_MODEL, rank=args.rank)
         print("session", service.training_session_id, flush=True)
-        results.append(evaluate(0, training_client, service, texts, scenes, spend, pool, film_ids, out_dir, log))
+        results.append(evaluate(0, training_client, service, texts, scenes, spend, pool, film_ids, out_dir, log, filmer))
         order = list(range(len(datums)))
         random.Random(7).shuffle(order)
         adam = sdk.AdamParams(learning_rate=args.lr, beta1=0.9, beta2=0.999, eps=1e-8, weight_decay=0.0, grad_clip_norm=1.0)
@@ -247,10 +263,18 @@ def main():
             log.write(json.dumps({"step": step, "loss": loss, "spend_usd": spend.usd}) + "\n")
             log.flush()
             if step in checkpoints:
-                results.append(evaluate(step, training_client, service, texts, scenes, spend, pool, film_ids, out_dir, log))
+                results.append(evaluate(step, training_client, service, texts, scenes, spend, pool, film_ids, out_dir, log, filmer))
             wandb.log({"train/loss": loss, "spend_usd": spend.usd}, step=step)
         best = max(results, key=lambda r: (r["successes"], r["step"]))
-        (out_dir / "summary.json").write_text(json.dumps({"best": best, "checkpoints": results, "spend_usd": spend.usd, "session": service.training_session_id,
+        final = None
+        if not args.smoke:
+            final = held_out(best, service, texts, spend, pool, out_dir, log)
+            wandb.summary.update({"held_out_success_rate": final["success_rate"], "held_out_unsafe": final["unsafe"]})
+        for scene_id, step, future in filmer:
+            path = future.result()
+            if path:
+                wandb.log({f"video/{scene_id}/step{step:04d}": wandb.Video(str(path), format="mp4")})
+        (out_dir / "summary.json").write_text(json.dumps({"best": best, "held_out": final, "checkpoints": results, "spend_usd": spend.usd, "session": service.training_session_id,
                                                           "wandb_url": wandb.run.url}, indent=2))
         wandb.summary.update({"best_step": best["step"], "best_success_rate": best["success_rate"], "total_spend_usd": spend.usd})
         print("DONE best step", best["step"], f"{best['successes']}/{best['n']}", "spend", round(spend.usd, 2), "wandb", wandb.run.url, "dir", out_dir, flush=True)
