@@ -44,3 +44,26 @@ EVAL {"step": 25, "successes": 32, "n": 40, "perception_right": 39, "unsafe": 0,
 {"step": 27, "loss": 0.0064, "spend_usd": 3.797, "t": "15:38:40"}
 {"step": 28, "loss": 0.0035, "spend_usd": 3.87, "t": "15:38:49"}
 {"step": 29, "loss": 0.0021, "spend_usd": 3.951, "t": "15:38:58"}
+{"step": 30, "loss": 0.0076, "spend_usd": 4.038, "t": "15:39:07"}
+{"step": 31, "loss": 0.0018, "spend_usd": 4.139, "t": "15:39:16"}
+{"step": 32, "loss": 0.0123, "spend_usd": 4.212, "t": "15:39:25"}
+{"step": 33, "loss": 0.0105, "spend_usd": 4.298, "t": "15:39:34"}
+{"step": 34, "loss": 0.0075, "spend_usd": 4.38, "t": "15:39:47"}
+{"step": 35, "loss": 0.0065, "spend_usd": 4.46, "t": "15:39:55"}
+{"step": 36, "loss": 0.0052, "spend_usd": 4.554, "t": "15:40:04"}
+{"step": 37, "loss": 0.004, "spend_usd": 4.64, "t": "15:40:14"}
+{"step": 38, "loss": 0.0043, "spend_usd": 4.719, "t": "15:40:27"}
+{"step": 39, "loss": 0.0015, "spend_usd": 4.815, "t": "15:40:36"}
+{"step": 40, "loss": 0.0023, "spend_usd": 4.911, "t": "15:40:45"}
+{"step": 41, "loss": 0.0054, "spend_usd": 4.985, "t": "15:40:54"}
+{"step": 42, "loss": 0.0022, "spend_usd": 5.073, "t": "15:41:03"}
+{"step": 43, "loss": 0.0036, "spend_usd": 5.164, "t": "15:41:16"}
+{"step": 44, "loss": 0.0063, "spend_usd": 5.25, "t": "15:41:30"}
+{"step": 45, "loss": 0.006, "spend_usd": 5.331, "t": "15:41:38"}
+{"step": 46, "loss": 0.0039, "spend_usd": 5.428, "t": "15:41:52"}
+{"step": 47, "loss": 0.001, "spend_usd": 5.51, "t": "15:42:01"}
+{"step": 48, "loss": 0.0184, "spend_usd": 5.598, "t": "15:42:10"}
+{"step": 49, "loss": 0.0024, "spend_usd": 5.694, "t": "15:42:18"}
+{"step": 50, "loss": 0.0089, "spend_usd": 5.78, "t": "15:42:36"}
+prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+EVAL {"step": 50, "successes": 36, "n": 40, "perception_right": 39, "unsafe": 0, "withheld": 3, "errors": 0, "outcomes": {"packed": 26, "no_plan": 3, "wrong_hold": 1, "correct_hold": 10}, "tokens_out": 10736, "spend_usd": 6.172, "eval_minutes": 1.4, "by_tier": {"easy": {"n": 10, "successes": 10}, "hard": {"n": 10, "successes": 6}, "mixed": {"n": 10, "successes": 10}, "short": {"n": 10, "successes": 10}}}
