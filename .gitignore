@@ -6,3 +6,4 @@ warehouse/assets/panda/scene_*.xml
 wandb/
 recordings/raw/
 recordings/
+MUJOCO_LOG.TXT
