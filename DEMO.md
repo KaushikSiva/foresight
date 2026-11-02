@@ -39,21 +39,22 @@ We fixed thirty extreme orders in advance, ran them once, and scored every plan 
 
 **[Teammate, 1:10. Show the W&B curve, then this table.]**
 
-| 50 held-out orders, with Foresight | Base GLM | Fine-tuned GLM |
-|---|---|---|
-| Images read correctly | 32/50 | **50/50** |
-| Correct overall | 43/50 | 44/50 |
-| Hard orders correct | **9/12** | 6/12 |
+| 30 extreme orders | Correct | Images read right | Plans withheld |
+|---|---|---|---|
+| Base GLM + Foresight | 25/30 | 22/30 | 0 |
+| Fine-tuned GLM + Foresight | 12/30 | **30/30** | 18 |
+| **Fine-tuned vision + base planner + Foresight** | **30/30** | **30/30** | 0 |
 
-Every remaining failure came from misreading the camera, so that's what we fine-tuned, using six hundred simulated examples for about nine dollars. On fifty new orders, correct image reads went from thirty-two to all fifty. But overall success barely moved, forty-three to forty-four, and hard orders got worse, because we also turned reasoning off. That's the real tradeoff.
+Every remaining failure came from misreading the camera, so we fine-tuned on six hundred simulated examples for about eight dollars. It read every image correctly. But on its own it fell to twelve out of thirty, because it plans without reasoning, and Foresight blocked the plans it couldn't get right, so nothing unsafe moved. So we split the jobs: the tuned model reads the camera, and the reasoning model plans behind the check. That got all thirty. We chose that combination after seeing these results, so it's a strong lead that still needs a fresh test.
 
 **[Kaushik, 1:45]**
 
-Next, we'd ship fine-tuned vision with a reasoning planner, behind the Foresight check. A plan that fails never reaches the robot. That's safety you can measure, for under a cent per extra correct order. Thank you.
-
-**Retrained model on the extreme test:** result pending. Add a line only if it's ready and worth mentioning.
+Next, we'd validate that combination on new orders and deploy it. Fine-tuning gave us the eyes, reasoning gives us the plan, and Foresight makes sure a bad plan never reaches the robot. Thank you.
 
 ## Rules for presenting
+
+- **Don't call 30/30 a final result.** The combination was chosen after seeing the extreme results, on the same 30 orders, and its 32 s median excludes camera reading. Say "a strong lead that needs a fresh test."
+- **Don't say the tuned model beats base overall.** Alone on the extreme test it lost clearly: 2 wins, 15 losses, 12/30 vs. 25/30.
 
 - **Don't say "statistically significant"** about the extreme test. Say "5 wins, 0 losses".
 - **Don't say the model went from 3/40 to 38/40.** Step 0 ran with reasoning off, which makes it look far worse than the real base model. On those 40 tuning orders, base with Foresight scored 34/40.
@@ -65,7 +66,7 @@ Next, we'd ship fine-tuned vision with a reasoning planner, behind the Foresight
 ## Questions to prepare for
 
 **Is this production ready?**
-No. The base model runs on Fireworks serverless. A tuned model needs a paid on-demand GPU, and we haven't deployed one. Check whether the retrained model has been saved before you answer.
+No. The base model runs on Fireworks serverless. The tuned model is saved on Fireworks as `foresight-glm-5p3-flash-warehouse`, but serving it needs a paid on-demand GPU, and we haven't deployed one.
 
 **How realistic is the simulation?**
 It uses MuJoCo physics and a real Franka Panda arm model, rendered with MuJoCo's standard renderer, so it's not photoreal. The arm doesn't collide with objects, held items attach rigidly to the hand, and a fragile item counts as crushed above a fixed 2 N load.
@@ -76,11 +77,14 @@ Yes. On one held-out order, a plan passed the dry run and then crushed a jar in 
 **Why not Gemma?**
 Gemma 4 with vision needs 4 B200 GPUs on Fireworks, about $52/hour, and Gemma 3 is listed as text-only. GLM 5.3 Flash is serverless and handles images.
 
-**Why did hard orders get worse after tuning?**
-Most likely because the tuned model answers without reasoning, though we didn't isolate that. Perception was correct on all 6 failures, and those plans never passed the check, so the robot didn't move.
+**Why did planning get worse after tuning?**
+Most likely because the tuned model answers without reasoning, though we didn't isolate that. Its camera reads were right on every failure, and its plans never passed the check, so the robot didn't move. Without the harness, the same tuned model produced 16 unsafe plans out of 30, which is why the check matters.
+
+**What about the earlier 44/50 held-out result?**
+That came from the first training run, whose weights were lost. The saved model is a retrain, and it hasn't had a held-out test.
 
 **What did it cost?**
-About $9.44 for the first training run. The retrain has a $12 cap. Each eval run costs cents.
+About $9.44 for the first training run and $7.58 for the retrain. Each base-model eval run costs cents.
 
 ## If something breaks
 
@@ -92,7 +96,6 @@ About $9.44 for the first training run. The retrain has a $12 cap. Each eval run
 
 - [ ] Both speakers have rehearsed twice with a timer
 - [ ] Both videos play from a local copy, with no wifi
-- [ ] Retrained model result filled in, or that line removed
 - [ ] Repo access works for judges, if they need it (it's private)
 - [ ] Both people are registered, since solo entries aren't accepted
 - [ ] Submit before 4:30 PM, with a 3:30 PM target
