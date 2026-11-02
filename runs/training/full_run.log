@@ -1,0 +1,39 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+You are using a model of type `glm5_next` to instantiate a model of type ``. This may be expected if you are loading a checkpoint that shares a subset of the architecture (e.g., loading a `sam2_video` checkpoint into `Sam2Model`), but is otherwise not supported and can yield errors. Please verify that the checkpoint is compatible with the model you are instantiating.
+300 vision + 300 plan examples, 739,917 tokens, training estimate $6.58, 75 steps, cap $15.0
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from WANDB_API_KEY.
+wandb: Currently logged in as: kaushik-siva88 to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 4niwlqds
+wandb: Tracking run with wandb version 0.24.2
+wandb: Run data is saved locally in /Users/kaushiksivakumar/workspace/foresight/wandb/run-20261102_135437-4niwlqds
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run run-20261102-135436
+wandb: ⭐️ View project at https://wandb.ai/kaushik-siva88/foresight-warehouse
+wandb: 🚀 View run at https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/4niwlqds
+session ts-4fc7f31dba2749b8b106071e52ea3624
+prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+EVAL {"step": 0, "successes": 3, "n": 40, "perception_right": 22, "unsafe": 0, "withheld": 35, "errors": 0, "outcomes": {"no_plan": 37, "packed": 3}, "tokens_out": 76952, "spend_usd": 1.061, "eval_minutes": 4.4, "by_tier": {"easy": {"n": 10, "successes": 3}, "hard": {"n": 10, "successes": 0}, "mixed": {"n": 10, "successes": 0}, "short": {"n": 10, "successes": 0}}}
+{"step": 1, "loss": 0.9859, "spend_usd": 1.163, "t": "13:59:19"}
+{"step": 2, "loss": 0.1552, "spend_usd": 1.231, "t": "13:59:28"}
+{"step": 3, "loss": 0.0795, "spend_usd": 1.316, "t": "13:59:37"}
+{"step": 4, "loss": 0.0168, "spend_usd": 1.399, "t": "13:59:45"}
+{"step": 5, "loss": 0.0164, "spend_usd": 1.479, "t": "13:59:54"}
+{"step": 6, "loss": 0.0159, "spend_usd": 1.581, "t": "14:00:03"}
+{"step": 7, "loss": 0.0254, "spend_usd": 1.678, "t": "14:00:12"}
+{"step": 8, "loss": 0.0125, "spend_usd": 1.761, "t": "14:00:20"}
+{"step": 9, "loss": 0.0205, "spend_usd": 1.849, "t": "14:00:29"}
+{"step": 10, "loss": 0.0104, "spend_usd": 1.923, "t": "14:00:57"}
+{"step": 11, "loss": 0.0097, "spend_usd": 1.995, "t": "14:01:06"}
+{"step": 12, "loss": 0.0065, "spend_usd": 2.082, "t": "14:01:14"}
+{"step": 13, "loss": 0.0076, "spend_usd": 2.164, "t": "14:01:23"}
+{"step": 14, "loss": 0.0102, "spend_usd": 2.262, "t": "14:01:32"}
+{"step": 15, "loss": 0.0064, "spend_usd": 2.349, "t": "14:01:40"}
+{"step": 16, "loss": 0.0035, "spend_usd": 2.451, "t": "14:01:49"}
+{"step": 17, "loss": 0.0007, "spend_usd": 2.556, "t": "14:01:58"}
+{"step": 18, "loss": 0.0024, "spend_usd": 2.64, "t": "14:02:07"}
+{"step": 19, "loss": 0.0034, "spend_usd": 2.741, "t": "14:02:16"}
+{"step": 20, "loss": 0.0055, "spend_usd": 2.833, "t": "14:02:29"}
+{"step": 21, "loss": 0.0051, "spend_usd": 2.926, "t": "14:02:37"}
+{"step": 22, "loss": 0.0045, "spend_usd": 3.016, "t": "14:02:46"}
+{"step": 23, "loss": 0.0235, "spend_usd": 3.102, "t": "14:02:55"}
+{"step": 24, "loss": 0.0081, "spend_usd": 3.18, "t": "14:03:04"}

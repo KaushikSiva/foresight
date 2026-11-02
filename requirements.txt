@@ -1,4 +1,9 @@
+mujoco>=3.3
+numpy
+pillow
+imageio
+pytest
+wandb
+fireworks-ai[training]
 fastapi
 uvicorn
-pillow
-pytest

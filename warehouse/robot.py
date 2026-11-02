@@ -9,7 +9,7 @@ from .world import load_model
 READY = np.array([0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785])
 TUCKED = np.array([2.6, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785])
 TCP_OFFSET = np.array([0.0, 0.0, 0.1034])
-TRAVEL_Z = 0.34
+TRAVEL_Z = 0.32
 CONTROL_STEPS = 10  # 20 ms control period at a 2 ms physics step
 GRIPPER_OPEN, GRIPPER_CLOSED = 255.0, 0.0
 
@@ -105,7 +105,7 @@ class Station:
             step = jac.T @ np.linalg.solve(jac @ jac.T + 1e-4 * np.eye(6), error)
             null = (np.eye(7) - np.linalg.pinv(jac) @ jac) @ (READY - d.qpos[self.qadr]) * 0.05
             d.qpos[self.qadr] = np.clip(d.qpos[self.qadr] + np.clip(step + null, -0.2, 0.2), self.limits[:, 0], self.limits[:, 1])
-        self.max_ik_error = max(self.max_ik_error, float(np.linalg.norm(error[:3])))
+        self.last_ik_error = float(np.linalg.norm(error[:3]))
         return d.qpos[self.qadr].copy()
 
     def _tcp(self):
@@ -121,6 +121,7 @@ class Station:
             s = i / ticks
             s = s * s * (3 - 2 * s)
             q = self._ik(q, start + (target - start) * s)
+            self.max_ik_error = max(self.max_ik_error, self.last_ik_error)
             self.data.ctrl[:7] = q
             self._step()
         self._step(100)
@@ -134,6 +135,7 @@ class Station:
         goal = seed
         for _ in range(6):
             goal = self._ik(goal, target)
+        self.max_ik_error = max(self.max_ik_error, self.last_ik_error)
         start = self.data.qpos[self.qadr].copy()
         duration = max(0.4, np.max(np.abs(goal - start)) / speed)
         ticks = int(duration / (self.model.opt.timestep * CONTROL_STEPS))
