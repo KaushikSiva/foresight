@@ -36,18 +36,18 @@ class FireworksClient:
             headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
         )
         start = time.monotonic()
-        for attempt in range(4):
+        for attempt in range(6):
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
                     payload = json.load(response)
                 break
             except urllib.error.HTTPError as e:
-                if e.code not in RETRYABLE or attempt == 3:
+                if e.code not in RETRYABLE or attempt == 5:
                     raise RuntimeError(f"Fireworks HTTP {e.code}: {e.read()[:300].decode(errors='replace')}") from e
             except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException) as e:
-                if attempt == 3:
+                if attempt == 5:
                     raise RuntimeError(f"Fireworks request failed: {e}") from e
-            time.sleep(2 ** attempt)
+            time.sleep(2 ** attempt + 1)
         usage = payload.get("usage", {})
         return {
             "text": payload["choices"][0]["message"].get("content") or "",

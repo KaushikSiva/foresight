@@ -24,7 +24,7 @@ def main():
         except RuntimeError as e:
             return {"scene": scene["id"], "totes": None, "error": str(e), "call": None}
 
-    with ThreadPoolExecutor(8) as pool:
+    with ThreadPoolExecutor(5) as pool:
         records = list(pool.map(run, scenes))
     with open(PERCEPTION, "w") as f:
         for record in records:

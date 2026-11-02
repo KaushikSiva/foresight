@@ -48,7 +48,7 @@ def _score_job(job):
     return result
 
 
-def run_variant(client, model, variant_fn, scenes, perception, workers=8, pool=None):
+def run_variant(client, model, variant_fn, scenes, perception, workers=5, pool=None):
     """Plan with threads (network), then score with processes (physics)."""
     def plan(scene):
         seen = perception[scene["id"]]

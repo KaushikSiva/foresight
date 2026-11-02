@@ -10,12 +10,18 @@ from .robot import execute
 from .rules import MAX_STACK_M, ParseError, apply_call, fillable, new_state, packed_counts, parse_call
 
 MAX_REPLANS = 2
+# How each product looks to the overhead camera, which cannot see side labels.
 SKU_LOOKS = {
-    "ceramic_mug": "plain white mug with a handle", "glass_jar": "honey jar, cream and amber label",
-    "soup_can": "can, red and white label", "paint_can": "can, grey and blue label",
-    "detergent_jug": "blue box with a yellow band", "hardcover_book": "dark green flat box with a gold band",
-    "headphones_box": "black box with a light band", "phone_box": "flat white box with a blue band",
-    "bearing_box": "orange box with a dark band", "tissue_box": "pale teal box with a white band",
+    "ceramic_mug": "open white cup: a ring with a hollow inside and a small handle on one side",
+    "glass_jar": "round cream-yellow lid with a brown rim around it",
+    "soup_can": "solid round red top",
+    "paint_can": "solid round pale grey lid with no hollow and no handle",
+    "detergent_jug": "rectangle, bright blue with a yellow band across one end",
+    "hardcover_book": "rectangle, dark green with a gold band across one end",
+    "headphones_box": "rectangle, black with a pale band across one end",
+    "phone_box": "rectangle, white with a blue band across one end",
+    "bearing_box": "rectangle, orange with a dark band across one end",
+    "tissue_box": "rectangle, pale teal with a white band across one end",
 }
 
 
