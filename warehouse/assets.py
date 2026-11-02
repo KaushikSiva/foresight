@@ -57,8 +57,8 @@ def cardboard(seed=1, size=1024, label=True):
 
 
 def concrete(size=2048):
-    n = _noise(size, ((6, 0.45), (32, 0.3), (180, 0.25)), seed=4)
-    img = _tint(n, (92, 92, 90), (158, 156, 150))
+    n = _noise(size, ((3, 0.3), (40, 0.2), (500, 0.5)), seed=4)
+    img = _tint(n, (112, 112, 109), (150, 149, 144))
     d = ImageDraw.Draw(img, "RGBA")
     rng = np.random.default_rng(5)
     for _ in range(26):
@@ -75,12 +75,16 @@ def concrete(size=2048):
 
 
 def bench_wood(size=1024):
+    """Grey ESD bench mat with a faint speckle and scuffs."""
     rng = np.random.default_rng(8)
-    y = np.linspace(0, 1, size)[:, None]
-    x = np.linspace(0, 1, size)[None, :]
-    grain = np.sin((y * 90 + 6 * np.sin(x * 7 + y * 11)) * 3) * 0.5 + 0.5
-    n = grain * 0.5 + _noise(size, seed=9) * 0.5 + rng.random((size, size)) * 0.05
-    return _tint(n, (124, 88, 52), (196, 156, 106))
+    n = _noise(size, ((8, 0.35), (64, 0.25), (256, 0.4)), seed=9)
+    img = _tint(n, (70, 76, 82), (104, 110, 116))
+    d = ImageDraw.Draw(img, "RGBA")
+    for _ in range(90):
+        x, y = rng.integers(0, size, 2)
+        length, tilt = rng.integers(20, 180), rng.uniform(-1, 1)
+        d.line([(int(x), int(y)), (int(x + length), int(y + length * tilt))], fill=(190, 195, 200, 16), width=1)
+    return img.filter(ImageFilter.GaussianBlur(0.4))
 
 
 def pallet_wood(size=512):
@@ -169,9 +173,7 @@ def _write_obj(path, vertices, uvs, normals, faces):
 
 def lathe(path, profile, segments=64, extra=None):
     """Revolve (r, z) points about z. UV u wraps around, v runs along the profile."""
-    lengths = [0.0]
-    for a, b in zip(profile, profile[1:]):
-        lengths.append(lengths[-1] + math.dist(a, b))
+    height = max(z for _, z in profile)
     vertices, uvs, normals, faces = [], [], [], []
     rows = len(profile)
     for i, (r, z) in enumerate(profile):
@@ -181,7 +183,7 @@ def lathe(path, profile, segments=64, extra=None):
         for s in range(segments + 1):
             t = 2 * math.pi * s / segments
             vertices.append((r * math.cos(t), r * math.sin(t), z))
-            uvs.append((s / segments, lengths[i] / lengths[-1]))
+            uvs.append((s / segments, z / height))
             normals.append((nr / norm * math.cos(t), nr / norm * math.sin(t), nz / norm))
     width = segments + 1
     for i in range(rows - 1):
