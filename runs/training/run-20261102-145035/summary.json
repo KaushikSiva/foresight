@@ -1,0 +1,92 @@
+{
+  "best": {
+    "n": 40,
+    "successes": 36,
+    "success_rate": 0.9,
+    "unsafe": 0,
+    "crushed": 0,
+    "wasteful": 1,
+    "withheld": 4,
+    "errors": 0,
+    "outcomes": {
+      "packed": 26,
+      "no_plan": 4,
+      "correct_hold": 10
+    },
+    "p50_latency_s": 2.8744617920001474,
+    "tokens_in": 39063,
+    "tokens_out": 9943,
+    "carton_cost_usd": 29.2,
+    "by_tier": {
+      "easy": {
+        "n": 10,
+        "successes": 10
+      },
+      "hard": {
+        "n": 10,
+        "successes": 8
+      },
+      "mixed": {
+        "n": 10,
+        "successes": 8
+      },
+      "short": {
+        "n": 10,
+        "successes": 10
+      }
+    },
+    "step": 75,
+    "perception_right": 40,
+    "snapshot": "kaushik-siva88-bfszv/run-bba304f8e56445e9819852b919880d84/s0075-5bc71ad3",
+    "spend_usd": 6.97,
+    "eval_minutes": 1.2
+  },
+  "held_out": null,
+  "checkpoints": [
+    {
+      "n": 40,
+      "successes": 36,
+      "success_rate": 0.9,
+      "unsafe": 0,
+      "crushed": 0,
+      "wasteful": 1,
+      "withheld": 4,
+      "errors": 0,
+      "outcomes": {
+        "packed": 26,
+        "no_plan": 4,
+        "correct_hold": 10
+      },
+      "p50_latency_s": 2.8744617920001474,
+      "tokens_in": 39063,
+      "tokens_out": 9943,
+      "carton_cost_usd": 29.2,
+      "by_tier": {
+        "easy": {
+          "n": 10,
+          "successes": 10
+        },
+        "hard": {
+          "n": 10,
+          "successes": 8
+        },
+        "mixed": {
+          "n": 10,
+          "successes": 8
+        },
+        "short": {
+          "n": 10,
+          "successes": 10
+        }
+      },
+      "step": 75,
+      "perception_right": 40,
+      "snapshot": "kaushik-siva88-bfszv/run-bba304f8e56445e9819852b919880d84/s0075-5bc71ad3",
+      "spend_usd": 6.97,
+      "eval_minutes": 1.2
+    }
+  ],
+  "spend_usd": 7.580972480000002,
+  "session": "ts-49120c6ed6e544a5bb278fc605b289e0",
+  "wandb_url": "https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/mmy51dnf"
+}

@@ -85,3 +85,45 @@ session ts-49120c6ed6e544a5bb278fc605b289e0
 {"step": 72, "loss": 0.0016, "spend_usd": 6.297, "t": "15:03:18"}
 {"step": 73, "loss": 0.0046, "spend_usd": 6.395, "t": "15:03:34"}
 {"step": 74, "loss": 0.0035, "spend_usd": 6.487, "t": "15:03:51"}
+{"step": 75, "loss": 0.0051, "spend_usd": 6.578, "t": "15:04:06"}
+prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+EVAL {"step": 75, "successes": 36, "n": 40, "perception_right": 40, "unsafe": 0, "withheld": 4, "errors": 0, "outcomes": {"packed": 26, "no_plan": 4, "correct_hold": 10}, "tokens_out": 9943, "spend_usd": 6.97, "eval_minutes": 1.2, "by_tier": {"easy": {"n": 10, "successes": 10}, "hard": {"n": 10, "successes": 8}, "mixed": {"n": 10, "successes": 8}, "short": {"n": 10, "successes": 10}}}
+MODEL SAVED foresight-glm-5p3-flash-warehouse from accounts/kaushik-siva88-bfszv/trainingSessions/ts-49120c6ed6e544a5bb278fc605b289e0/checkpoints/run-bba304f8e56445e9819852b919880d84-final-5bc71ad3
+prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+EXTREME {"variant": "A_tuned_plain", "successes": 10, "n": 30, "perception_right": 30, "unsafe": 16, "withheld": 0, "errors": 0, "outcomes": {"wrong_hold": 4, "packed": 4, "crushed": 7, "rule_broken": 9, "correct_hold": 6}, "tokens_out": 2188, "p50_latency_s": 1.7741052080000372, "spend_usd": 7.193, "by_tier": {"extreme": {"n": 24, "successes": 4}, "extreme_short": {"n": 6, "successes": 6}}}
+EXTREME {"variant": "C_tuned_foresight", "successes": 12, "n": 30, "perception_right": 30, "unsafe": 0, "withheld": 18, "errors": 0, "outcomes": {"no_plan": 18, "packed": 6, "correct_hold": 6}, "tokens_out": 26584, "p50_latency_s": 9.816905166000652, "spend_usd": 7.581, "by_tier": {"extreme": {"n": 24, "successes": 6}, "extreme_short": {"n": 6, "successes": 6}}}
+DONE best step 75 36/40 spend 7.58 wandb https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/mmy51dnf dir /Users/kaushiksivakumar/workspace/foresight/runs/training/run-20261102-145035
+wandb: updating run metadata
+wandb: uploading history steps 74-74, summary, console lines 81-82
+wandb: 
+wandb: Run history:
+wandb:   eval/perception_rate ▁
+wandb: eval/reply_tokens_mean ▁
+wandb:      eval/success_rate ▁
+wandb:            eval/unsafe ▁
+wandb:          eval/withheld ▁
+wandb:              spend_usd ▁▁▁▁▂▂▂▂▂▂▃▃▃▃▃▄▄▄▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▆▇▇▇▇█
+wandb:              tier/easy ▁
+wandb:              tier/hard ▁
+wandb:             tier/mixed ▁
+wandb:             tier/short ▁
+wandb:                     +1 ...
+wandb: 
+wandb: Run summary:
+wandb:              best_step 75
+wandb:      best_success_rate 0.9
+wandb:   eval/perception_rate 1
+wandb: eval/reply_tokens_mean 248.575
+wandb:      eval/success_rate 0.9
+wandb:            eval/unsafe 0
+wandb:          eval/withheld 4
+wandb:              spend_usd 6.96997
+wandb:              tier/easy 1
+wandb:              tier/hard 0.8
+wandb:                     +4 ...
+wandb: 
+wandb: 🚀 View run run-20261102-145035 at: https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/mmy51dnf
+wandb: ⭐️ View project at: https://wandb.ai/kaushik-siva88/foresight-warehouse
+wandb: Synced 5 W&B file(s), 1 media file(s), 2 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261102_145035-mmy51dnf/logs
+SESSION KEPT: ts-49120c6ed6e544a5bb278fc605b289e0
