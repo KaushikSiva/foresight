@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foresight</title>
+<style>
+  :root { --bg:#0f1216; --panel:#181d24; --line:#2c343f; --text:#e8ecf1; --muted:#98a4b3; --good:#4ade80; --bad:#f87171; --warn:#fbbf24; --accent:#ff7a45; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.45 system-ui,sans-serif; }
+  main { max-width:1200px; margin:auto; padding:24px 16px 60px; }
+  h1 { margin:0; font-size:30px; } h2 { font-size:18px; margin:0 0 12px; }
+  .sub { color:var(--muted); margin:4px 0 22px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; }
+  select,button { font:inherit; color:var(--text); background:#232a33; border:1px solid var(--line); border-radius:7px; padding:9px 12px; }
+  select { min-width:0; max-width:100%; }
+  button { background:var(--accent); border:0; color:#180a03; font-weight:700; cursor:pointer; }
+  button.alt { background:#232a33; color:var(--text); border:1px solid var(--line); font-weight:500; }
+  button:disabled { opacity:.5; cursor:wait; }
+  .scene { display:grid; grid-template-columns:minmax(0,420px) minmax(0,1fr); gap:18px; align-items:start; }
+  .scene img { width:100%; border-radius:8px; display:block; }
+  .instruction { font-size:22px; font-weight:650; margin:0 0 6px; }
+  .compare { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
+  .step { font:14px/1.6 ui-monospace,Menlo,monospace; overflow-wrap:anywhere; }
+  .ok { color:var(--good); } .fail { color:var(--bad); } .skip { color:var(--muted); text-decoration:line-through; }
+  .verdict { font-weight:800; font-size:18px; margin:0 0 10px; }
+  .meta { color:var(--muted); font-size:13px; margin-top:12px; }
+  .attempt { border-left:3px solid var(--warn); padding:4px 10px; margin:8px 0; font-size:14px; overflow-wrap:anywhere; }
+  .attempt.pass { border-color:var(--good); }
+  .scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th,td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+  th:first-child,td:first-child { text-align:left; }
+  .empty { color:var(--muted); }
+  @media (max-width:760px) { .scene { grid-template-columns:minmax(0,1fr); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Foresight</h1>
+  <p class="sub">Gemma imagines the outcome of each robot action, writes the plan as code, and checks it in simulation before anything moves.</p>
+
+  <section class="panel">
+    <div class="controls">
+      <select id="scene" aria-label="Scene"></select>
+      <button id="live">Run live</button>
+      <button id="recorded" class="alt">Replay recorded</button>
+    </div>
+    <div class="scene">
+      <img id="image" alt="Top-down camera view of the scene">
+      <div>
+        <p class="instruction" id="instruction"></p>
+        <p class="meta" id="tier"></p>
+        <p class="meta" id="status" role="status"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="compare">
+    <div class="panel"><h2>Plain model</h2><div id="A_baseline" class="empty">Not run yet.</div></div>
+    <div class="panel"><h2>Foresight</h2><div id="C_foresight" class="empty">Not run yet.</div></div>
+  </section>
+
+  <section class="panel">
+    <h2>Eval results from logged runs</h2>
+    <div class="scroll" id="results"></div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const num = (v, d = 1) => v == null ? "not measured" : v.toFixed(d);
+
+async function getJSON(url, options) {
+  const response = await fetch(url, options);
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.detail || response.statusText);
+  return body;
+}
+
+function verdict(r) {
+  if (r.status === "error") return ["API error", "fail"];
+  if (r.status === "withheld") return ["Plan withheld: nothing reached the robot", "ok"];
+  if (r.score.success) return [r.score.refused ? "Correctly refused" : "Task succeeded", "ok"];
+  if (r.score.unsafe) return ["Unsafe action", "fail"];
+  if (r.score.refused) return ["Wrongly refused", "fail"];
+  return ["Task failed", "fail"];
+}
+
+function show(id, r) {
+  const [label, cls] = verdict(r);
+  const attempts = (r.history || []).map((h, i) => `<div class="attempt ${h.errors.length ? "" : "pass"}">
+    Attempt ${i + 1}: ${h.errors.length ? h.errors.map(esc).join("<br>") : "passed the check"}</div>`).join("");
+  const steps = (r.truth_steps || []).map(s => `<div class="step ${!s.reached ? "skip" : s.ok ? "ok" : "fail"}">${esc(s.call)}</div>`).join("");
+  const raw = !steps && r.program ? `<div class="step">${esc(r.program)}</div>` : "";
+  const latency = (r.calls || []).reduce((sum, c) => sum + c.latency_s, 0);
+  const tokens = (r.calls || []).reduce((sum, c) => sum + c.prompt_tokens + c.completion_tokens, 0);
+  $(id).className = "";
+  $(id).innerHTML = `<p class="verdict ${cls}">${label}</p>${attempts}${steps}${raw}
+    ${r.violation_message ? `<p class="fail">${esc(r.violation_message)}</p>` : ""}${r.error ? `<p class="fail">${esc(r.error)}</p>` : ""}
+    <p class="meta">${r.source === "live" ? "Live call" : "Recorded from " + esc(r.run)} · ${latency.toFixed(1)}s · ${tokens} tokens · ${(r.calls || []).length} calls</p>`;
+}
+
+async function runBoth(urlFor, options) {
+  const id = $("scene").value;
+  $("live").disabled = $("recorded").disabled = true;
+  $("status").textContent = "Running…";
+  const failures = [];
+  await Promise.all(["A_baseline", "C_foresight"].map(async variant => {
+    $(variant).className = "empty";
+    $(variant).textContent = "Running…";
+    try { show(variant, await getJSON(urlFor(id, variant), options?.(id, variant))); }
+    catch (e) { $(variant).textContent = "Not available."; failures.push(e.message); }
+  }));
+  $("status").textContent = [...new Set(failures)].join(" · ");
+  $("live").disabled = $("recorded").disabled = false;
+}
+
+$("live").onclick = () => runBoth(() => "/api/plan", (scene_id, variant) => ({
+  method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({scene_id, variant}),
+}));
+$("recorded").onclick = () => runBoth((id, variant) => `/api/recorded/${id}/${variant}`);
+
+async function loadScenes() {
+  const scenes = await getJSON("/api/scenes");
+  const pick = () => {
+    const s = scenes.find(x => x.id === $("scene").value);
+    $("image").src = `/images/${s.id}.png`;
+    $("instruction").textContent = s.instruction;
+    $("tier").textContent = `${s.tier.replace("_", " ")} · ${s.split.replace("_", " ")} set`;
+    for (const v of ["A_baseline", "C_foresight"]) { $(v).className = "empty"; $(v).textContent = "Not run yet."; }
+    $("status").textContent = "";
+  };
+  const order = ["blocked", "multi_step", "impossible", "easy"];
+  scenes.sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier));
+  $("scene").innerHTML = scenes.map(s => `<option value="${s.id}">${esc(s.id)}: ${esc(s.instruction)}</option>`).join("");
+  $("scene").onchange = pick;
+  pick();
+}
+
+async function loadResults() {
+  const rows = await getJSON("/api/results");
+  if (!rows.length) { $("results").innerHTML = '<p class="empty">No eval runs logged yet.</p>'; return; }
+  const order = {held_out: 0, tuning: 1};
+  rows.sort((a, b) => order[a.split] - order[b.split] || a.variant.localeCompare(b.variant));
+  $("results").innerHTML = `<table><thead><tr><th>Variant</th><th>Set</th><th>Success</th><th>Unsafe</th><th>Invalid</th><th>Withheld</th><th>Correct refusals</th><th>API errors</th><th>p50 s</th><th>p95 s</th><th>Tokens</th><th>Cost per success</th></tr></thead><tbody>${rows.map(r => `<tr>
+    <td>${esc(r.variant.replace("_", ": "))}</td><td>${esc(r.split.replace("_", " "))}</td>
+    <td>${r.successes}/${r.n}</td><td>${r.unsafe}</td><td>${r.invalid}</td><td>${r.withheld}</td>
+    <td>${r.correct_refusals}/${r.impossible_total}</td><td>${r.errors}</td>
+    <td>${num(r.p50_latency_s)}</td><td>${num(r.p95_latency_s)}</td><td>${r.tokens.toLocaleString()}</td>
+    <td>${r.cost_per_success_usd == null ? "not measured" : "$" + r.cost_per_success_usd.toFixed(5)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+loadScenes().catch(e => { $("status").textContent = e.message; });
+loadResults().catch(e => { $("results").textContent = e.message; });
+</script>
+</body>
+</html>
