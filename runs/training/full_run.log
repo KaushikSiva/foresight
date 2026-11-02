@@ -1,0 +1,14 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+You are using a model of type `glm5_next` to instantiate a model of type ``. This may be expected if you are loading a checkpoint that shares a subset of the architecture (e.g., loading a `sam2_video` checkpoint into `Sam2Model`), but is otherwise not supported and can yield errors. Please verify that the checkpoint is compatible with the model you are instantiating.
+300 vision + 300 plan examples, 739,917 tokens, training estimate $6.58, 75 steps, cap $15.0
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from WANDB_API_KEY.
+wandb: Currently logged in as: kaushik-siva88 to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run gsagrsqj
+wandb: Tracking run with wandb version 0.24.2
+wandb: Run data is saved locally in /Users/kaushiksivakumar/workspace/foresight/wandb/run-20261102_134420-gsagrsqj
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run run-20261102-134419
+wandb: ⭐️ View project at https://wandb.ai/kaushik-siva88/foresight-warehouse
+wandb: 🚀 View run at https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/gsagrsqj
+session ts-318b37d7f51e4cec85d1a8befc58c1df
+prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
