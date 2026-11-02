@@ -93,3 +93,48 @@ EVAL {"step": 50, "successes": 36, "n": 40, "perception_right": 39, "unsafe": 0,
 {"step": 74, "loss": 0.0065, "spend_usd": 8.295, "t": "15:48:31"}
 {"step": 75, "loss": 0.0197, "spend_usd": 8.386, "t": "15:48:40"}
 prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+EVAL {"step": 75, "successes": 34, "n": 40, "perception_right": 40, "unsafe": 0, "withheld": 6, "errors": 0, "outcomes": {"packed": 24, "no_plan": 6, "correct_hold": 10}, "tokens_out": 12740, "spend_usd": 8.811, "eval_minutes": 1.2, "by_tier": {"easy": {"n": 10, "successes": 10}, "hard": {"n": 10, "successes": 4}, "mixed": {"n": 10, "successes": 10}, "short": {"n": 10, "successes": 10}}}
+MODEL SAVED foresight-glm-5p3-flash-warehouse-v3 from accounts/kaushik-siva88-bfszv/trainingSessions/ts-e66f07a439604614bc50fb6045a7ae98/checkpoints/run-de715bbb4c1747e18ff81582e39da4dd-final-a83414f5
+prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+EXTREME {"variant": "A_tuned_plain", "successes": 10, "n": 30, "perception_right": 30, "unsafe": 11, "withheld": 0, "errors": 0, "outcomes": {"rule_broken": 8, "packed": 4, "invalid": 2, "wrong_hold": 4, "wrong_items": 3, "crushed": 3, "correct_hold": 6}, "tokens_out": 2306, "p50_latency_s": 1.8319714999997814, "spend_usd": 9.034, "by_tier": {"extreme": {"n": 24, "successes": 4}, "extreme_short": {"n": 6, "successes": 6}}}
+EXTREME {"variant": "C_tuned_foresight", "successes": 12, "n": 30, "perception_right": 30, "unsafe": 0, "withheld": 18, "errors": 0, "outcomes": {"packed": 6, "no_plan": 18, "correct_hold": 6}, "tokens_out": 28299, "p50_latency_s": 16.357134875997872, "spend_usd": 9.444, "by_tier": {"extreme": {"n": 24, "successes": 6}, "extreme_short": {"n": 6, "successes": 6}}}
+DONE best step 50 36/40 spend 9.44 wandb https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/ksatibyx dir /Users/kaushiksivakumar/workspace/foresight/runs/training/run-20261102-152713
+wandb: updating run metadata
+wandb: uploading media/videos/video/mixed-03/step0075_88_9c29a3ae43a5ea396956.mp4; uploading media/videos/video/mixed-03/step0000_76_548cd0c0979f6b73a851.mp4; uploading media/videos/video/short-06/step0000_77_209f0348327fb6b6e9c1.mp4; uploading media/videos/video/hard-13/step0025_79_873169fa388007442afd.mp4; uploading media/videos/video/mixed-03/step0025_80_f50f26701472f10ec57e.mp4 (+ 14 more)
+wandb: uploading media/videos/video/mixed-03/step0075_88_9c29a3ae43a5ea396956.mp4; uploading media/videos/video/hard-13/step0025_79_873169fa388007442afd.mp4; uploading media/videos/video/short-06/step0050_85_42488e8a264d0dab26ba.mp4; uploading media/videos/video/mixed-03/step0050_84_b46c93ae6eadd3581250.mp4; uploading media/videos/video/short-06/step0075_89_1acce53598cb6e0d0dfe.mp4 (+ 8 more)
+wandb: uploading media/videos/video/mixed-03/step0075_88_9c29a3ae43a5ea396956.mp4; uploading media/videos/video/hard-13/step0025_79_873169fa388007442afd.mp4; uploading media/videos/video/mixed-03/step0050_84_b46c93ae6eadd3581250.mp4; uploading media/videos/video/hard-00/step0075_90_c4d228c880cd5f2cbc66.mp4; uploading media/videos/video/hard-13/step0075_87_e4550351dd559d28a4a8.mp4 (+ 4 more)
+wandb: uploading media/videos/video/mixed-03/step0075_88_9c29a3ae43a5ea396956.mp4; uploading media/videos/video/hard-13/step0025_79_873169fa388007442afd.mp4; uploading media/videos/video/mixed-03/step0050_84_b46c93ae6eadd3581250.mp4; uploading media/videos/video/hard-00/step0075_90_c4d228c880cd5f2cbc66.mp4; uploading media/videos/video/hard-13/step0075_87_e4550351dd559d28a4a8.mp4 (+ 3 more)
+wandb: uploading media/videos/video/hard-13/step0025_79_873169fa388007442afd.mp4; uploading media/videos/video/mixed-03/step0050_84_b46c93ae6eadd3581250.mp4; uploading media/videos/video/hard-00/step0075_90_c4d228c880cd5f2cbc66.mp4; uploading media/videos/video/hard-13/step0075_87_e4550351dd559d28a4a8.mp4; uploading media/videos/video/hard-00/step0025_82_643563a889bd0ae24999.mp4 (+ 2 more)
+wandb: uploading history steps 75-90, summary, console lines 87-88
+wandb: 
+wandb: Run history:
+wandb:   eval/perception_rate ▁███
+wandb: eval/reply_tokens_mean █▁▁▁
+wandb:      eval/success_rate ▁▇██
+wandb:            eval/unsafe ▁▁▁▁
+wandb:          eval/withheld █▂▁▂
+wandb:              spend_usd ▁▁▁▁▁▂▂▂▂▂▃▃▃▃▃▄▄▄▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▇▇▇▇▇█
+wandb:              tier/easy ▁███
+wandb:              tier/hard ▁██▆
+wandb:             tier/mixed ▁▅██
+wandb:             tier/short ▁███
+wandb:                     +1 ...
+wandb: 
+wandb: Run summary:
+wandb:              best_step 50
+wandb:      best_success_rate 0.9
+wandb:   eval/perception_rate 1
+wandb: eval/reply_tokens_mean 318.5
+wandb:      eval/success_rate 0.85
+wandb:            eval/unsafe 0
+wandb:          eval/withheld 6
+wandb:              spend_usd 8.81071
+wandb:              tier/easy 1
+wandb:              tier/hard 0.4
+wandb:                     +4 ...
+wandb: 
+wandb: 🚀 View run run-20261102-152713 at: https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/ksatibyx
+wandb: ⭐️ View project at: https://wandb.ai/kaushik-siva88/foresight-warehouse
+wandb: Synced 5 W&B file(s), 20 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261102_152714-ksatibyx/logs
+SESSION KEPT: ts-e66f07a439604614bc50fb6045a7ae98
