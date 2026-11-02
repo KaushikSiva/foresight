@@ -93,3 +93,45 @@ EVAL {"step": 50, "successes": 35, "n": 40, "perception_right": 38, "unsafe": 0,
 {"step": 74, "loss": 0.0005, "spend_usd": 8.457, "t": "14:17:12"}
 {"step": 75, "loss": 0.011, "spend_usd": 8.548, "t": "14:17:25"}
 prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+EVAL {"step": 75, "successes": 38, "n": 40, "perception_right": 40, "unsafe": 0, "withheld": 2, "errors": 0, "outcomes": {"packed": 28, "no_plan": 2, "correct_hold": 10}, "tokens_out": 9503, "spend_usd": 8.916, "eval_minutes": 1.3, "by_tier": {"easy": {"n": 10, "successes": 10}, "hard": {"n": 10, "successes": 8}, "mixed": {"n": 10, "successes": 10}, "short": {"n": 10, "successes": 10}}}
+prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+HELD_OUT {"step": 75, "successes": 44, "n": 50, "perception_right": 50, "unsafe": 0, "withheld": 6, "errors": 0, "outcomes": {"packed": 32, "no_plan": 6, "correct_hold": 12}, "tokens_out": 15612, "p50_latency_s": 2.772702250000293, "spend_usd": 9.435, "by_tier": {"easy": {"n": 13, "successes": 13}, "hard": {"n": 12, "successes": 6}, "mixed": {"n": 13, "successes": 13}, "short": {"n": 12, "successes": 12}}}
+DONE best step 75 38/40 spend 9.44 wandb https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/4niwlqds dir /Users/kaushiksivakumar/workspace/foresight/runs/training/run-20261102-135436
+wandb: updating run metadata
+wandb: uploading media/videos/video/hard-13/step0075_87_e4550351dd559d28a4a8.mp4; uploading media/videos/video/mixed-03/step0075_88_fe446b88200b58bae208.mp4; uploading media/videos/video/short-06/step0075_89_1acce53598cb6e0d0dfe.mp4; uploading output.log; uploading media/videos/video/hard-13/step0000_75_4a66fb453888f2c0bafd.mp4 (+ 14 more)
+wandb: uploading media/videos/video/hard-13/step0075_87_e4550351dd559d28a4a8.mp4; uploading media/videos/video/mixed-03/step0075_88_fe446b88200b58bae208.mp4; uploading media/videos/video/short-06/step0000_77_209f0348327fb6b6e9c1.mp4; uploading media/videos/video/hard-13/step0025_79_93cb628d4244efdd47d7.mp4; uploading media/videos/video/hard-13/step0050_83_7667b227678c55d87826.mp4 (+ 8 more)
+wandb: uploading media/videos/video/hard-13/step0075_87_e4550351dd559d28a4a8.mp4; uploading media/videos/video/mixed-03/step0075_88_fe446b88200b58bae208.mp4; uploading media/videos/video/hard-13/step0025_79_93cb628d4244efdd47d7.mp4; uploading media/videos/video/hard-13/step0050_83_7667b227678c55d87826.mp4; uploading media/videos/video/hard-00/step0050_86_f04f0a41c1cc3f88204b.mp4 (+ 3 more)
+wandb: uploading media/videos/video/hard-13/step0075_87_e4550351dd559d28a4a8.mp4; uploading media/videos/video/hard-13/step0025_79_93cb628d4244efdd47d7.mp4; uploading media/videos/video/hard-13/step0050_83_7667b227678c55d87826.mp4; uploading media/videos/video/hard-00/step0050_86_f04f0a41c1cc3f88204b.mp4; uploading media/videos/video/hard-00/step0075_90_c4d228c880cd5f2cbc66.mp4 (+ 2 more)
+wandb: uploading media/videos/video/hard-13/step0025_79_93cb628d4244efdd47d7.mp4; uploading media/videos/video/hard-13/step0050_83_7667b227678c55d87826.mp4; uploading media/videos/video/hard-00/step0050_86_f04f0a41c1cc3f88204b.mp4; uploading media/videos/video/hard-00/step0075_90_c4d228c880cd5f2cbc66.mp4
+wandb: 
+wandb: Run history:
+wandb:   eval/perception_rate ▁█▇█
+wandb: eval/reply_tokens_mean █▂▂▁
+wandb:      eval/success_rate ▁▇▇█
+wandb:            eval/unsafe ▁▁▁▁
+wandb:          eval/withheld █▂▁▁
+wandb:              spend_usd ▁▁▁▁▂▂▂▂▂▂▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▇▇▇▇▇█████
+wandb:              tier/easy ▁███
+wandb:              tier/hard ▁▇▇█
+wandb:             tier/mixed ▁▇▇█
+wandb:             tier/short ▁█▇█
+wandb:                     +1 ...
+wandb: 
+wandb: Run summary:
+wandb:              best_step 75
+wandb:      best_success_rate 0.95
+wandb:   eval/perception_rate 1
+wandb: eval/reply_tokens_mean 237.575
+wandb:      eval/success_rate 0.95
+wandb:            eval/unsafe 0
+wandb:          eval/withheld 2
+wandb:  held_out_success_rate 0.88
+wandb:        held_out_unsafe 0
+wandb:              spend_usd 8.91641
+wandb:                     +6 ...
+wandb: 
+wandb: 🚀 View run run-20261102-135436 at: https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/4niwlqds
+wandb: ⭐️ View project at: https://wandb.ai/kaushik-siva88/foresight-warehouse
+wandb: Synced 5 W&B file(s), 20 media file(s), 8 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20261102_135437-4niwlqds/logs
+session deleted

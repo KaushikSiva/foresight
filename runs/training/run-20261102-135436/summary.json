@@ -1,0 +1,258 @@
+{
+  "best": {
+    "n": 40,
+    "successes": 38,
+    "success_rate": 0.95,
+    "unsafe": 0,
+    "crushed": 0,
+    "wasteful": 5,
+    "withheld": 2,
+    "errors": 0,
+    "outcomes": {
+      "packed": 28,
+      "no_plan": 2,
+      "correct_hold": 10
+    },
+    "p50_latency_s": 2.6372501249989,
+    "tokens_in": 32047,
+    "tokens_out": 9503,
+    "carton_cost_usd": 35.5,
+    "by_tier": {
+      "easy": {
+        "n": 10,
+        "successes": 10
+      },
+      "hard": {
+        "n": 10,
+        "successes": 8
+      },
+      "mixed": {
+        "n": 10,
+        "successes": 10
+      },
+      "short": {
+        "n": 10,
+        "successes": 10
+      }
+    },
+    "step": 75,
+    "perception_right": 40,
+    "snapshot": "kaushik-siva88-bfszv/run-1f085c7c356f476abbdcae7c6f29a6f9/s0075-33b249b4",
+    "spend_usd": 8.916,
+    "eval_minutes": 1.3
+  },
+  "held_out": {
+    "n": 50,
+    "successes": 44,
+    "success_rate": 0.88,
+    "unsafe": 0,
+    "crushed": 0,
+    "wasteful": 6,
+    "withheld": 6,
+    "errors": 0,
+    "outcomes": {
+      "packed": 32,
+      "no_plan": 6,
+      "correct_hold": 12
+    },
+    "p50_latency_s": 2.772702250000293,
+    "tokens_in": 50598,
+    "tokens_out": 15612,
+    "carton_cost_usd": 38.75,
+    "by_tier": {
+      "easy": {
+        "n": 13,
+        "successes": 13
+      },
+      "hard": {
+        "n": 12,
+        "successes": 6
+      },
+      "mixed": {
+        "n": 13,
+        "successes": 13
+      },
+      "short": {
+        "n": 12,
+        "successes": 12
+      }
+    },
+    "step": 75,
+    "perception_right": 50,
+    "split": "held_out",
+    "spend_usd": 9.435
+  },
+  "checkpoints": [
+    {
+      "n": 40,
+      "successes": 3,
+      "success_rate": 0.075,
+      "unsafe": 0,
+      "crushed": 0,
+      "wasteful": 0,
+      "withheld": 35,
+      "errors": 0,
+      "outcomes": {
+        "no_plan": 37,
+        "packed": 3
+      },
+      "p50_latency_s": 18.226895167001203,
+      "tokens_in": 78997,
+      "tokens_out": 76952,
+      "carton_cost_usd": 1.8,
+      "by_tier": {
+        "easy": {
+          "n": 10,
+          "successes": 3
+        },
+        "hard": {
+          "n": 10,
+          "successes": 0
+        },
+        "mixed": {
+          "n": 10,
+          "successes": 0
+        },
+        "short": {
+          "n": 10,
+          "successes": 0
+        }
+      },
+      "step": 0,
+      "perception_right": 22,
+      "snapshot": "kaushik-siva88-bfszv/run-1f085c7c356f476abbdcae7c6f29a6f9/s0000-33b249b4",
+      "spend_usd": 1.061,
+      "eval_minutes": 4.4
+    },
+    {
+      "n": 40,
+      "successes": 35,
+      "success_rate": 0.875,
+      "unsafe": 0,
+      "crushed": 0,
+      "wasteful": 1,
+      "withheld": 5,
+      "errors": 0,
+      "outcomes": {
+        "packed": 25,
+        "no_plan": 5,
+        "correct_hold": 10
+      },
+      "p50_latency_s": 3.2888317090000783,
+      "tokens_in": 50008,
+      "tokens_out": 14586,
+      "carton_cost_usd": 27.75,
+      "by_tier": {
+        "easy": {
+          "n": 10,
+          "successes": 10
+        },
+        "hard": {
+          "n": 10,
+          "successes": 7
+        },
+        "mixed": {
+          "n": 10,
+          "successes": 8
+        },
+        "short": {
+          "n": 10,
+          "successes": 10
+        }
+      },
+      "step": 25,
+      "perception_right": 39,
+      "snapshot": "kaushik-siva88-bfszv/run-1f085c7c356f476abbdcae7c6f29a6f9/s0025-33b249b4",
+      "spend_usd": 3.726,
+      "eval_minutes": 1.6
+    },
+    {
+      "n": 40,
+      "successes": 35,
+      "success_rate": 0.875,
+      "unsafe": 0,
+      "crushed": 0,
+      "wasteful": 4,
+      "withheld": 4,
+      "errors": 0,
+      "outcomes": {
+        "packed": 26,
+        "no_plan": 4,
+        "correct_hold": 9,
+        "shipped_short": 1
+      },
+      "p50_latency_s": 3.0547245830002794,
+      "tokens_in": 47801,
+      "tokens_out": 14386,
+      "carton_cost_usd": 31.75,
+      "by_tier": {
+        "easy": {
+          "n": 10,
+          "successes": 10
+        },
+        "hard": {
+          "n": 10,
+          "successes": 7
+        },
+        "mixed": {
+          "n": 10,
+          "successes": 9
+        },
+        "short": {
+          "n": 10,
+          "successes": 9
+        }
+      },
+      "step": 50,
+      "perception_right": 38,
+      "snapshot": "kaushik-siva88-bfszv/run-1f085c7c356f476abbdcae7c6f29a6f9/s0050-33b249b4",
+      "spend_usd": 6.335,
+      "eval_minutes": 1.4
+    },
+    {
+      "n": 40,
+      "successes": 38,
+      "success_rate": 0.95,
+      "unsafe": 0,
+      "crushed": 0,
+      "wasteful": 5,
+      "withheld": 2,
+      "errors": 0,
+      "outcomes": {
+        "packed": 28,
+        "no_plan": 2,
+        "correct_hold": 10
+      },
+      "p50_latency_s": 2.6372501249989,
+      "tokens_in": 32047,
+      "tokens_out": 9503,
+      "carton_cost_usd": 35.5,
+      "by_tier": {
+        "easy": {
+          "n": 10,
+          "successes": 10
+        },
+        "hard": {
+          "n": 10,
+          "successes": 8
+        },
+        "mixed": {
+          "n": 10,
+          "successes": 10
+        },
+        "short": {
+          "n": 10,
+          "successes": 10
+        }
+      },
+      "step": 75,
+      "perception_right": 40,
+      "snapshot": "kaushik-siva88-bfszv/run-1f085c7c356f476abbdcae7c6f29a6f9/s0075-33b249b4",
+      "spend_usd": 8.916,
+      "eval_minutes": 1.3
+    }
+  ],
+  "spend_usd": 9.43523692,
+  "session": "ts-4fc7f31dba2749b8b106071e52ea3624",
+  "wandb_url": "https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/4niwlqds"
+}
