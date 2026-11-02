@@ -37,7 +37,7 @@ def _card(path, lines):
         y += size + 34
     png = path.with_suffix(".png")
     image.save(png)
-    _ffmpeg("-loop", "1", "-i", str(png), "-t", str(CARD_SECONDS), "-f", "lavfi", "-i", "anullsrc", "-shortest", "-an", "-vf", f"scale={W}:{H}", *ENCODE, str(path))
+    _ffmpeg("-loop", "1", "-t", str(CARD_SECONDS), "-i", str(png), "-vf", f"scale={W}:{H}", *ENCODE, str(path))
     png.unlink()
 
 
