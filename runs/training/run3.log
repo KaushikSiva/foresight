@@ -12,3 +12,21 @@ wandb: ⭐️ View project at https://wandb.ai/kaushik-siva88/foresight-warehous
 wandb: 🚀 View run at https://wandb.ai/kaushik-siva88/foresight-warehouse/runs/ksatibyx
 session ts-e66f07a439604614bc50fb6045a7ae98
 prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+EVAL {"step": 0, "successes": 2, "n": 40, "perception_right": 19, "unsafe": 0, "withheld": 32, "errors": 0, "outcomes": {"no_plan": 37, "packed": 1, "wrong_hold": 1, "correct_hold": 1}, "tokens_out": 66482, "spend_usd": 0.961, "eval_minutes": 3.6, "by_tier": {"easy": {"n": 10, "successes": 1}, "hard": {"n": 10, "successes": 0}, "mixed": {"n": 10, "successes": 0}, "short": {"n": 10, "successes": 1}}}
+{"step": 1, "loss": 0.9859, "spend_usd": 1.063, "t": "15:31:08"}
+{"step": 2, "loss": 0.1546, "spend_usd": 1.131, "t": "15:31:17"}
+{"step": 3, "loss": 0.0922, "spend_usd": 1.216, "t": "15:31:31"}
+{"step": 4, "loss": 0.0128, "spend_usd": 1.299, "t": "15:31:39"}
+{"step": 5, "loss": 0.0168, "spend_usd": 1.379, "t": "15:31:52"}
+{"step": 6, "loss": 0.0126, "spend_usd": 1.482, "t": "15:32:00"}
+{"step": 7, "loss": 0.0113, "spend_usd": 1.579, "t": "15:32:09"}
+{"step": 8, "loss": 0.012, "spend_usd": 1.661, "t": "15:32:18"}
+{"step": 9, "loss": 0.0329, "spend_usd": 1.75, "t": "15:32:26"}
+{"step": 10, "loss": 0.0396, "spend_usd": 1.823, "t": "15:32:35"}
+{"step": 11, "loss": 0.0192, "spend_usd": 1.895, "t": "15:32:51"}
+{"step": 12, "loss": 0.0098, "spend_usd": 1.982, "t": "15:33:00"}
+{"step": 13, "loss": 0.013, "spend_usd": 2.065, "t": "15:33:17"}
+{"step": 14, "loss": 0.0071, "spend_usd": 2.162, "t": "15:33:26"}
+{"step": 15, "loss": 0.0084, "spend_usd": 2.249, "t": "15:33:34"}
+{"step": 16, "loss": 0.0053, "spend_usd": 2.351, "t": "15:33:43"}
+{"step": 17, "loss": 0.0014, "spend_usd": 2.456, "t": "15:33:56"}
