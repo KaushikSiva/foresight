@@ -92,7 +92,17 @@ At each checkpoint, the same orders are read, planned, scored in physics and fil
 
 <img src="docs/training.png" alt="Training loss curve and camera read accuracy rising from 22 to 40 out of 40 across checkpoints">
 
-<img src="docs/wandb.png" alt="Weights and Biases run page showing the videos logged at each checkpoint">
+### From our Weights & Biases run
+
+Screenshots of the first training run, `run-20261102-135436`.
+
+| Camera reads right | Orders correct |
+|---|---|
+| <img src="docs/wandb_perception.png" alt="W&B chart of eval perception rate rising to 1.0 by step 75"> | <img src="docs/wandb_success.png" alt="W&B chart of eval success rate rising to about 0.95 by step 75"> |
+
+| Training loss | Checkpoint videos |
+|---|---|
+| <img src="docs/wandb_loss.png" alt="W&B chart of training loss falling from about 1.0 to near zero within a few steps"> | <img src="docs/wandb.png" alt="W&B run page showing the MuJoCo videos logged at each checkpoint"> |
 
 **[See every run, curve and checkpoint video on W&B →](https://wandb.ai/kaushik-siva88/foresight-warehouse)**
 
